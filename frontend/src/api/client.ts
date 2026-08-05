@@ -16,9 +16,20 @@ client.interceptors.request.use((config) => {
 
 client.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     const status = error.response?.status
-    const message = error.response?.data?.message || '请求失败'
+    const data = error.response?.data
+    let message = '请求失败'
+    if (data instanceof Blob && data.type.includes('json')) {
+      try {
+        const text = await data.text()
+        message = JSON.parse(text)?.message || message
+      } catch {
+        message = message
+      }
+    } else if (data?.message) {
+      message = Array.isArray(data.message) ? data.message.join('；') : data.message
+    }
     if (status === 401) {
       localStorage.removeItem('mun_token')
       localStorage.removeItem('mun_user')
@@ -26,7 +37,7 @@ client.interceptors.response.use(
         window.location.href = '/login'
       }
     } else {
-      ElMessage.error(Array.isArray(message) ? message.join('；') : message)
+      ElMessage.error(message)
     }
     return Promise.reject(error)
   },

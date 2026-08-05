@@ -12,13 +12,25 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
+import { diskStorage, Options as MulterOptions } from 'multer';
 import { extname } from 'path';
 import { Response } from 'express';
 import { SessionsService } from './sessions.service';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { UserRole } from '../entities/user.entity';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+
+const uploadOptions = {
+  defParamCharset: 'utf8',
+  storage: diskStorage({
+    destination: './uploads/temp',
+    filename: (req, file, callback) => {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      const ext = extname(file.originalname);
+      callback(null, `${uniqueSuffix}${ext}`);
+    },
+  }),
+} as MulterOptions;
 
 @Controller('sessions')
 @UseGuards(JwtAuthGuard)
@@ -62,16 +74,7 @@ export class SessionsController {
    * 发送磋商文件消息
    */
   @Post(':id/messages')
-  @UseInterceptors(FileInterceptor('file', {
-    storage: diskStorage({
-      destination: './uploads/temp',
-      filename: (req, file, callback) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        const ext = extname(file.originalname);
-        callback(null, `${uniqueSuffix}${ext}`);
-      },
-    }),
-  }))
+  @UseInterceptors(FileInterceptor('file', uploadOptions))
   async sendMessage(
     @Param('id') id: string,
     @UploadedFile() file: Express.Multer.File,
@@ -96,7 +99,11 @@ export class SessionsController {
   ) {
     const { readStream, fileName } = await this.sessionsService.downloadFile(messageId, user.cabinetId);
     
-    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
+    const asciiFallback = fileName.replace(/[^\x20-\x7E]/g, '_').replace(/"/g, '');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(fileName)}`,
+    );
     return new StreamableFile(readStream);
   }
 }
