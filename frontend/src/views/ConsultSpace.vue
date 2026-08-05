@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Plus, Upload } from '@element-plus/icons-vue'
+import { Edit, Plus, Upload } from '@element-plus/icons-vue'
 import { cabinetsApi, sessionsApi } from '../api'
 import { useAuthStore } from '../stores/auth'
 import type { Cabinet, CabinetType, Message, Session } from '../types'
@@ -18,6 +18,18 @@ const currentSession = computed(
   () => sessions.value.find((s) => s.id === currentSessionId.value) || null,
 )
 
+function groupName(session: Session): string {
+  if (session.name) return session.name
+  const names = session.members.map((m) => m.name)
+  if (!names.length) return '未知群聊'
+  return names.slice(0, 2).join(' · ')
+}
+
+function memberNames(session: Session): string {
+  const names = session.members.map((m) => m.name)
+  return names.length ? names.join(' · ') : '暂无成员'
+}
+
 async function refreshSessions() {
   try {
     sessions.value = await sessionsApi.list()
@@ -33,6 +45,7 @@ async function loadMessages(sessionId: string, behavior: ScrollBehavior = 'auto'
   if (sessionId !== currentSessionId.value) return
   try {
     const list = await sessionsApi.messages(sessionId)
+    // 仅在消息数量增长时刷新并滚动到底部（轮询时不重复滚动）
     if (list.length !== messages.value.length) {
       messages.value = list
       nextTick(() => scrollToBottom(behavior))
@@ -91,19 +104,23 @@ function selectSession(session: Session) {
   currentSessionId.value = session.id
 }
 
-// ---------- 新建磋商 ----------
+// ---------- 新建群聊 ----------
 const dialogVisible = ref(false)
 const creating = ref(false)
-const targetCabinetId = ref('')
+const selectedCabinetIds = ref<string[]>([])
+const groupNameInput = ref('')
 const cabinets = ref<Cabinet[]>([])
 
 const candidateCabinets = computed(() =>
   cabinets.value.filter((c) => c.id !== myCabinetId.value),
 )
 
+const canCreate = computed(() => selectedCabinetIds.value.length >= 2)
+
 async function openCreateDialog() {
+  selectedCabinetIds.value = []
+  groupNameInput.value = ''
   dialogVisible.value = true
-  targetCabinetId.value = ''
   try {
     cabinets.value = await cabinetsApi.list()
   } catch {
@@ -112,21 +129,57 @@ async function openCreateDialog() {
 }
 
 async function createSession() {
-  if (!targetCabinetId.value) {
-    ElMessage.warning('请选择磋商对象')
+  if (!canCreate.value) {
+    ElMessage.warning('请至少选择 2 个内阁')
     return
   }
   creating.value = true
   try {
-    const session = await sessionsApi.create(targetCabinetId.value)
+    const name = groupNameInput.value.trim()
+    const session = await sessionsApi.create(
+      selectedCabinetIds.value,
+      name ? name : undefined,
+    )
     await refreshSessions()
     currentSessionId.value = session.id
     dialogVisible.value = false
-    ElMessage.success('磋商创建成功')
+    ElMessage.success('群聊创建成功')
   } catch {
     // 错误已由 axios 拦截器统一提示
   } finally {
     creating.value = false
+  }
+}
+
+// ---------- 修改群名 ----------
+const renameDialogVisible = ref(false)
+const renaming = ref(false)
+const renameInput = ref('')
+
+function openRenameDialog() {
+  const session = currentSession.value
+  if (!session) return
+  renameInput.value = session.name || groupName(session)
+  renameDialogVisible.value = true
+}
+
+async function renameSession() {
+  const sessionId = currentSessionId.value
+  const name = renameInput.value.trim()
+  if (!sessionId || !name) {
+    ElMessage.warning('群名不能为空')
+    return
+  }
+  renaming.value = true
+  try {
+    await sessionsApi.rename(sessionId, name)
+    await refreshSessions()
+    renameDialogVisible.value = false
+    ElMessage.success('群名修改成功')
+  } catch {
+    // 错误已由 axios 拦截器统一提示
+  } finally {
+    renaming.value = false
   }
 }
 
@@ -136,7 +189,7 @@ const sending = ref(false)
 
 function triggerFileSelect() {
   if (!currentSessionId.value) {
-    ElMessage.warning('请先选择磋商会话')
+    ElMessage.warning('请先选择群聊')
     return
   }
   fileInput.value?.click()
@@ -207,19 +260,29 @@ function formatMessageTime(iso: string): string {
 }
 
 function isOwn(message: Message): boolean {
-  return message.senderCabinetId === myCabinetId.value
+  return (
+    !!myCabinetId.value &&
+    message.senderType === 'CABINET' &&
+    message.senderCabinetId === myCabinetId.value
+  )
 }
 </script>
 
 <template>
   <div class="page-card consult-page">
     <div class="consult-layout">
-      <!-- 左侧：会话列表 -->
+      <!-- 左侧：群聊列表 -->
       <div class="session-panel">
         <div class="session-panel-header">
-          <span class="session-panel-title">磋商会话</span>
-          <el-button type="primary" size="small" :icon="Plus" @click="openCreateDialog">
-            新建磋商
+          <span class="session-panel-title">磋商群聊</span>
+          <el-button
+            v-if="!auth.isAcademic"
+            type="primary"
+            size="small"
+            :icon="Plus"
+            @click="openCreateDialog"
+          >
+            新建群
           </el-button>
         </div>
         <div v-if="sessions.length" class="session-list">
@@ -230,21 +293,29 @@ function isOwn(message: Message): boolean {
             :class="{ active: s.id === currentSessionId }"
             @click="selectSession(s)"
           >
-            <el-badge :value="s.unreadCount || 0" :hidden="!s.unreadCount" :max="99">
+            <el-badge
+              :value="s.unreadCount || 0"
+              :hidden="!(s.unreadCount && s.unreadCount > 0)"
+              :max="99"
+            >
               <el-avatar :size="40" class="session-avatar">
-                {{ (s.otherCabinet?.name || '?').charAt(0) }}
+                {{ groupName(s).charAt(0) }}
               </el-avatar>
             </el-badge>
             <div class="session-meta">
               <div class="session-name-row">
-                <span class="session-name">{{ s.otherCabinet?.name || '未知内阁' }}</span>
+                <span class="session-name" :title="groupName(s)">{{ groupName(s) }}</span>
                 <span class="session-time">{{ formatTime(s.lastMessageTime) }}</span>
               </div>
+              <div class="session-subtitle" :title="memberNames(s)">{{ memberNames(s) }}</div>
             </div>
           </div>
         </div>
         <div v-else class="session-empty">
-          <el-empty description="暂无磋商，点击右上角新建" :image-size="80" />
+          <el-empty
+            :description="auth.isAcademic ? '暂无群聊' : '暂无群聊，点击新建群发起磋商'"
+            :image-size="80"
+          />
         </div>
       </div>
 
@@ -253,13 +324,32 @@ function isOwn(message: Message): boolean {
         <template v-if="currentSession">
           <div class="chat-header">
             <div class="chat-target">
-              <span class="chat-target-name">{{ currentSession.otherCabinet?.name || '未知内阁' }}</span>
-              <span v-if="currentSession.otherCabinet" class="chat-target-type">
-                {{ typeLabel(currentSession.otherCabinet.type) }}
+              <span class="chat-target-name" :title="groupName(currentSession)">
+                {{ groupName(currentSession) }}
               </span>
+              <span class="chat-target-type">{{ currentSession.members.length }} 人</span>
+              <el-button
+                v-if="!auth.isAcademic"
+                link
+                type="primary"
+                size="small"
+                :icon="Edit"
+                @click="openRenameDialog"
+              >
+                改群名
+              </el-button>
+              <el-tag v-else size="small" type="info" class="academic-header-tag">
+                学团身份 · 全部群聊可见
+              </el-tag>
             </div>
-            <el-button type="primary" size="small" :icon="Plus" @click="openCreateDialog">
-              新建磋商
+            <el-button
+              v-if="!auth.isAcademic"
+              type="primary"
+              size="small"
+              :icon="Plus"
+              @click="openCreateDialog"
+            >
+              新建群
             </el-button>
           </div>
 
@@ -273,6 +363,17 @@ function isOwn(message: Message): boolean {
               class="message-row"
               :class="{ own: isOwn(m) }"
             >
+              <div class="message-sender">
+                <span class="sender-name">{{ m.senderName || '未知' }}</span>
+                <el-tag
+                  v-if="m.senderType === 'ACADEMIC'"
+                  size="small"
+                  type="warning"
+                  class="sender-tag"
+                >
+                  学术
+                </el-tag>
+              </div>
               <div class="message-bubble">
                 <template v-if="m.file">
                   <div class="file-card" @click="downloadMessage(m)">
@@ -293,34 +394,87 @@ function isOwn(message: Message): boolean {
             <el-button type="primary" :loading="sending" :icon="Upload" @click="triggerFileSelect">
               发送文件
             </el-button>
-            <span class="toolbar-hint">支持发送任意文件，对方可下载；消息每 3 秒自动刷新</span>
+            <span class="toolbar-hint">支持发送任意文件，群成员可下载；消息每 3 秒自动刷新</span>
             <input ref="fileInput" type="file" class="hidden-file-input" @change="onFileChange" />
           </div>
         </template>
 
         <div v-else class="chat-placeholder">
-          <el-empty description="选择左侧会话开始磋商" :image-size="120" />
+          <el-empty description="选择左侧群聊开始磋商" :image-size="120" />
         </div>
       </div>
     </div>
 
-    <!-- 新建磋商对话框 -->
-    <el-dialog v-model="dialogVisible" title="新建磋商" width="420px" :close-on-click-modal="false">
+    <!-- 新建群聊对话框 -->
+    <el-dialog v-model="dialogVisible" title="新建群聊" width="480px" :close-on-click-modal="false">
       <div class="dialog-body">
-        <p class="dialog-tip">选择要发起磋商的内阁</p>
-        <el-select v-model="targetCabinetId" placeholder="请选择磋商对象" filterable style="width: 100%">
-          <el-option
-            v-for="c in candidateCabinets"
-            :key="c.id"
-            :label="`${c.name}（${typeLabel(c.type)}）`"
-            :value="c.id"
+        <el-alert
+          v-if="candidateCabinets.length < 2"
+          type="warning"
+          :closable="false"
+          title="内阁不足，无法创建群聊"
+          show-icon
+        />
+        <template v-else>
+          <p class="dialog-tip">选择群成员（至少 2 个内阁，不含自己）</p>
+          <el-select
+            v-model="selectedCabinetIds"
+            multiple
+            filterable
+            placeholder="请选择群成员"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="c in candidateCabinets"
+              :key="c.id"
+              :label="`${c.name}（${typeLabel(c.type)}）`"
+              :value="c.id"
+            />
+          </el-select>
+          <p class="dialog-tip dialog-tip-top">群名（可选）</p>
+          <el-input
+            v-model="groupNameInput"
+            placeholder="留空则自动以成员名命名"
+            maxlength="30"
+            clearable
           />
-        </el-select>
-        <el-empty v-if="!candidateCabinets.length" description="暂无可磋商的内阁" :image-size="60" />
+          <p v-if="!canCreate" class="dialog-hint">
+            请至少再选择 {{ 2 - selectedCabinetIds.length }} 个内阁
+          </p>
+        </template>
       </div>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="creating" @click="createSession">确认</el-button>
+        <el-button
+          type="primary"
+          :loading="creating"
+          :disabled="!canCreate || candidateCabinets.length < 2"
+          @click="createSession"
+        >
+          确认创建
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 修改群名对话框 -->
+    <el-dialog
+      v-model="renameDialogVisible"
+      title="修改群名"
+      width="420px"
+      :close-on-click-modal="false"
+    >
+      <div class="dialog-body">
+        <el-input
+          v-model="renameInput"
+          placeholder="请输入群名"
+          maxlength="30"
+          clearable
+          @keyup.enter="renameSession"
+        />
+      </div>
+      <template #footer>
+        <el-button @click="renameDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="renaming" @click="renameSession">保存</el-button>
       </template>
     </el-dialog>
   </div>
@@ -341,7 +495,7 @@ function isOwn(message: Message): boolean {
   min-height: 0;
 }
 
-/* ---------- 左侧会话列表 ---------- */
+/* ---------- 左侧群聊列表 ---------- */
 .session-panel {
   width: 280px;
   flex-shrink: 0;
@@ -422,6 +576,15 @@ function isOwn(message: Message): boolean {
   flex-shrink: 0;
 }
 
+.session-subtitle {
+  margin-top: 3px;
+  font-size: 12px;
+  color: #909399;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .session-empty {
   flex: 1;
   display: flex;
@@ -450,8 +613,8 @@ function isOwn(message: Message): boolean {
 
 .chat-target {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
+  align-items: center;
+  gap: 10px;
   min-width: 0;
 }
 
@@ -459,11 +622,20 @@ function isOwn(message: Message): boolean {
   font-size: 15px;
   font-weight: 600;
   color: #303133;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 240px;
 }
 
 .chat-target-type {
   font-size: 12px;
   color: #909399;
+  flex-shrink: 0;
+}
+
+.academic-header-tag {
+  flex-shrink: 0;
 }
 
 .message-list {
@@ -485,11 +657,33 @@ function isOwn(message: Message): boolean {
 
 .message-row {
   display: flex;
-  justify-content: flex-start;
+  flex-direction: column;
+  align-items: flex-start;
 }
 
 .message-row.own {
-  justify-content: flex-end;
+  align-items: flex-end;
+}
+
+.message-sender {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  font-size: 12px;
+  color: #909399;
+}
+
+.message-row.own .sender-name {
+  color: #409eff;
+}
+
+.sender-tag {
+  padding: 0 4px;
+  line-height: 16px;
+  height: 16px;
+  font-size: 10px;
+  border-radius: 2px;
 }
 
 .message-bubble {
@@ -618,5 +812,15 @@ function isOwn(message: Message): boolean {
   font-size: 13px;
   color: #909399;
   margin-bottom: 10px;
+}
+
+.dialog-tip-top {
+  margin-top: 12px;
+}
+
+.dialog-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #e6a23c;
 }
 </style>

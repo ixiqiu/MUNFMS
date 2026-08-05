@@ -26,7 +26,7 @@ export class FileEntity {
   @Column()
   uploaderId: string; // 上传者 User ID
 
-  @Column()
+  @Column({ nullable: true })
   targetId: string; // 归属目标 ID (如内阁ID，或公共/会议空间的全局标识)
 
   @Column({ default: false })

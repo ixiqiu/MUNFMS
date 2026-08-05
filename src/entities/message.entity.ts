@@ -2,6 +2,11 @@ import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDa
 import { Session } from './session.entity';
 import { FileEntity } from './file.entity';
 
+export enum MessageSenderType {
+  CABINET = 'CABINET',
+  ACADEMIC = 'ACADEMIC',
+}
+
 @Entity('messages')
 export class Message {
   @PrimaryGeneratedColumn('uuid')
@@ -14,8 +19,15 @@ export class Message {
   @Column()
   sessionId: string;
 
-  @Column()
-  senderCabinetId: string; // 发送方内阁 ID
+  @Column({ nullable: true })
+  senderCabinetId: string | null;
+
+  @Column({
+    type: 'simple-enum',
+    enum: MessageSenderType,
+    default: MessageSenderType.CABINET,
+  })
+  senderType: MessageSenderType;
 
   @ManyToOne(() => FileEntity)
   @JoinColumn({ name: 'fileId' })

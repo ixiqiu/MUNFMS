@@ -45,17 +45,18 @@ export interface FileEntity {
 
 export interface Session {
   id: string
-  cabinetA_id: string
-  cabinetB_id: string
+  name: string | null
   lastMessageTime: string | null
-  otherCabinet?: Cabinet
+  members: Cabinet[]
   unreadCount?: number
 }
 
 export interface Message {
   id: string
   sessionId: string
-  senderCabinetId: string
+  senderCabinetId: string | null
+  senderType: 'CABINET' | 'ACADEMIC'
+  senderName?: string | null
   fileId: string
   isRead: boolean
   createdAt: string

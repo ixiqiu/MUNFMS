@@ -2,8 +2,9 @@ import {
   Controller, 
   Get, 
   Post, 
+  Patch, 
+  Body,
   Param, 
-  Query, 
   UseGuards, 
   UseInterceptors, 
   UploadedFile, 
@@ -18,6 +19,7 @@ import { Response } from 'express';
 import { SessionsService } from './sessions.service';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { UserRole } from '../entities/user.entity';
+import { MessageSenderType } from '../entities/message.entity';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 
 const uploadOptions = {
@@ -38,40 +40,70 @@ export class SessionsController {
   constructor(private readonly sessionsService: SessionsService) {}
 
   /**
-   * 获取当前内阁的磋商会话列表及未读数
+   * 获取群聊列表及未读数（代表：自己的群；学团：全部群）
    */
   @Get()
   async getSessions(@CurrentUser() user: { id: string; cabinetId: string; role: UserRole }) {
-    const sessions = await this.sessionsService.getSessions(user.cabinetId);
+    const sessions = await this.sessionsService.getSessions(user.cabinetId, user.role);
     return { sessions };
   }
 
   /**
-   * 获取或创建会话
+   * 拉群：创建或获取已有群聊（至少 2 个内阁，可自定义群名）
    */
-  @Post('create')
-  async getOrCreateSession(
-    @Query('targetCabinetId') targetCabinetId: string,
-    @CurrentUser() user: { id: string; cabinetId: string; role: UserRole },
+  @Post()
+  async createGroupSession(
+    @Body() body: { cabinetIds: string[]; name?: string },
   ) {
-    const session = await this.sessionsService.getOrCreateSession(user.cabinetId, targetCabinetId);
+    const session = await this.sessionsService.createGroupSession(
+      body.cabinetIds,
+      body.name,
+    );
     return { session };
   }
 
   /**
-   * 获取特定会话的聊天记录
+   * 修改群名
+   */
+  @Patch(':id')
+  async renameSession(
+    @Param('id') id: string,
+    @Body() body: { name: string },
+    @CurrentUser() user: { id: string; cabinetId: string; role: UserRole },
+  ) {
+    const session = await this.sessionsService.renameSession(
+      id,
+      body.name,
+      user.cabinetId,
+      user.role,
+    );
+    return { session };
+  }
+
+  // 旧单点接口已弃用（由 POST /api/sessions 拉群接口替代）
+  // @Post('create')
+  // async getOrCreateSession(
+  //   @Query('targetCabinetId') targetCabinetId: string,
+  //   @CurrentUser() user: { id: string; cabinetId: string; role: UserRole },
+  // ) {
+  //   const session = await this.sessionsService.getOrCreateSession(user.cabinetId, targetCabinetId);
+  //   return { session };
+  // }
+
+  /**
+   * 获取群聊消息记录
    */
   @Get(':id/messages')
   async getMessages(
     @Param('id') id: string,
     @CurrentUser() user: { id: string; cabinetId: string; role: UserRole },
   ) {
-    const messages = await this.sessionsService.getMessages(id, user.cabinetId);
+    const messages = await this.sessionsService.getMessages(id, user.cabinetId, user.role);
     return { messages };
   }
 
   /**
-   * 发送磋商文件消息
+   * 发送磋商文件消息（学团以组织身份发送）
    */
   @Post(':id/messages')
   @UseInterceptors(FileInterceptor('file', uploadOptions))
@@ -84,7 +116,15 @@ export class SessionsController {
       throw new BadRequestException('未提供文件');
     }
 
-    const message = await this.sessionsService.sendMessage(id, file, user.cabinetId, user.id);
+    const isAcademic = user.role === UserRole.ACADEMIC;
+    const message = await this.sessionsService.sendMessage(
+      id,
+      file,
+      isAcademic ? null : user.cabinetId,
+      isAcademic ? MessageSenderType.ACADEMIC : MessageSenderType.CABINET,
+      user.id,
+      user.role,
+    );
     return { message };
   }
 
@@ -97,7 +137,11 @@ export class SessionsController {
     @CurrentUser() user: { id: string; cabinetId: string; role: UserRole },
     @Res({ passthrough: true }) res: Response,
   ) {
-    const { readStream, fileName } = await this.sessionsService.downloadFile(messageId, user.cabinetId);
+    const { readStream, fileName } = await this.sessionsService.downloadFile(
+      messageId,
+      user.cabinetId,
+      user.role,
+    );
     
     const asciiFallback = fileName.replace(/[^\x20-\x7E]/g, '_').replace(/"/g, '');
     res.setHeader(

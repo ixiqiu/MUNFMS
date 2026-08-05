@@ -54,9 +54,14 @@ export const sessionsApi = {
   list() {
     return client.get<{ sessions: Session[] }>('/sessions').then((r) => r.data.sessions)
   },
-  create(targetCabinetId: string) {
+  create(cabinetIds: string[], name?: string) {
     return client
-      .post<{ session: Session }>('/sessions/create', null, { params: { targetCabinetId } })
+      .post<{ session: Session }>('/sessions', { cabinetIds, name })
+      .then((r) => r.data.session)
+  },
+  rename(sessionId: string, name: string) {
+    return client
+      .patch<{ session: Session }>(`/sessions/${sessionId}`, { name })
       .then((r) => r.data.session)
   },
   messages(sessionId: string) {
