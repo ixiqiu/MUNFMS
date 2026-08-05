@@ -155,4 +155,4 @@ JWT_SECRET=一串随机的长字符串
 
 ## 📄 许可证
 
-ISC
+GPL v3
