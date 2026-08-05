@@ -5,11 +5,14 @@ export class Session {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
-  cabinetA_id: string; // 发起方内阁 ID
+  @Column({ nullable: true })
+  name: string;
 
-  @Column()
-  cabinetB_id: string; // 接收方内阁 ID
+  @Column({ nullable: true })
+  cabinetA_id: string;
+
+  @Column({ nullable: true })
+  cabinetB_id: string;
 
   @Column({ type: 'datetime', nullable: true })
   lastMessageTime: Date;
