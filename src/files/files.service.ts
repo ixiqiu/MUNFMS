@@ -150,18 +150,21 @@ export class FilesService {
 
   private async attachUploaderNames(
     files: FileEntity[],
-  ): Promise<(FileEntity & { uploaderName?: string })[]> {
+  ): Promise<(FileEntity & { uploaderName?: string; uploaderCabinetName?: string })[]> {
     const uploaderIds = [...new Set(files.map((f) => f.uploaderId))];
     if (uploaderIds.length === 0) {
       return files;
     }
     const users = await this.userRepo.find({
       where: uploaderIds.map((id) => ({ id })),
+      relations: ['cabinet'],
     });
     const nameMap = new Map(users.map((u) => [u.id, u.name]));
+    const cabinetMap = new Map(users.map((u) => [u.id, u.cabinet?.name]));
     return files.map((f) => ({
       ...f,
       uploaderName: nameMap.get(f.uploaderId),
+      uploaderCabinetName: cabinetMap.get(f.uploaderId),
     }));
   }
 

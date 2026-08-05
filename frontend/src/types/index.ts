@@ -37,6 +37,7 @@ export interface FileEntity {
   spaceType: SpaceType
   uploaderId: string
   uploaderName?: string
+  uploaderCabinetName?: string
   targetId: string
   isFromConference: boolean
   createdAt: string

@@ -14,7 +14,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
+import { diskStorage, Options as MulterOptions } from 'multer';
 import { extname } from 'path';
 import { Response } from 'express';
 import { FilesService } from './files.service';
@@ -22,6 +22,19 @@ import { SpacePermissionGuard } from '../common/guards/space-permission.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { SpaceType } from '../entities/file.entity';
 import { UserRole } from '../entities/user.entity';
+
+const uploadOptions = {
+  defParamCharset: 'utf8',
+  storage: diskStorage({
+    destination: './uploads/temp',
+    filename: (req, file, callback) => {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      const ext = extname(file.originalname);
+      callback(null, `${uniqueSuffix}${ext}`);
+    },
+  }),
+  limits: { fileSize: 50 * 1024 * 1024 },
+} as MulterOptions;
 
 @Controller('files')
 @UseGuards(SpacePermissionGuard)
@@ -32,17 +45,7 @@ export class FilesController {
    * 上传文件
    */
   @Post('upload')
-  @UseInterceptors(FileInterceptor('file', {
-    storage: diskStorage({
-      destination: './uploads/temp',
-      filename: (req, file, callback) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        const ext = extname(file.originalname);
-        callback(null, `${uniqueSuffix}${ext}`);
-      },
-    }),
-    limits: { fileSize: 50 * 1024 * 1024 },
-  }))
+  @UseInterceptors(FileInterceptor('file', uploadOptions))
   async uploadFile(
     @UploadedFile() file: Express.Multer.File,
     @Query('space') spaceType: SpaceType,
@@ -80,7 +83,11 @@ export class FilesController {
   ) {
     const { readStream, fileName } = await this.filesService.downloadFile(id, user);
     
-    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
+    const asciiFallback = fileName.replace(/[^\x20-\x7E]/g, '_').replace(/"/g, '');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(fileName)}`,
+    );
     return new StreamableFile(readStream);
   }
 

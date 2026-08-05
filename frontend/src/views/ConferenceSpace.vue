@@ -32,13 +32,14 @@ function formatTime(value: string): string {
 }
 
 function uploaderName(row: FileEntity): string {
-  if (row.uploaderName) {
-    return row.uploaderName
+  let name = row.uploaderName
+  if (!name && auth.user && row.uploaderId === auth.user.id) {
+    name = auth.user.name
   }
-  if (auth.user && row.uploaderId === auth.user.id) {
-    return auth.user.name
+  if (!name) {
+    return '—'
   }
-  return '—'
+  return row.uploaderCabinetName ? `${name}（${row.uploaderCabinetName}）` : name
 }
 
 async function loadFiles() {
