@@ -9,6 +9,7 @@ import type {
   UserRole,
   CabinetType,
   Cabinet,
+  AdminUser,
 } from '../types'
 
 export const authApi = {
@@ -18,9 +19,8 @@ export const authApi = {
   register(payload: {
     name: string
     password: string
-    role: UserRole
-    cabinetName: string
-    cabinetType: CabinetType
+    role: Exclude<UserRole, 'ADMIN'>
+    cabinetId: string
   }) {
     return client.post<{ message: string; user: User }>('/auth/register', payload).then((r) => r.data)
   },
@@ -77,5 +77,31 @@ export const sessionsApi = {
 export const cabinetsApi = {
   list() {
     return client.get<{ cabinets: Cabinet[] }>('/cabinets').then((r) => r.data.cabinets)
+  },
+}
+
+export const adminApi = {
+  users() {
+    return client.get<AdminUser[]>('/admin/users').then((r) => r.data)
+  },
+  createUser(payload: {
+    name: string
+    password: string
+    role: Exclude<UserRole, 'ADMIN'>
+    cabinetId?: string
+  }) {
+    return client.post('/admin/users', payload).then((r) => r.data)
+  },
+  changePassword(userId: string, newPassword: string) {
+    return client.patch(`/admin/users/${userId}/password`, { newPassword }).then((r) => r.data)
+  },
+  deleteUser(userId: string) {
+    return client.delete(`/admin/users/${userId}`).then((r) => r.data)
+  },
+  createCabinet(payload: { name: string; type: CabinetType }) {
+    return client.post('/admin/cabinets', payload).then((r) => r.data)
+  },
+  deleteCabinet(cabinetId: string) {
+    return client.delete(`/admin/cabinets/${cabinetId}`).then((r) => r.data)
   },
 }

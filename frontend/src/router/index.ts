@@ -14,6 +14,7 @@ const router = createRouter({
         { path: 'public', name: 'public', component: () => import('../views/PublicSpace.vue') },
         { path: 'conference', name: 'conference', component: () => import('../views/ConferenceSpace.vue') },
         { path: 'consult', name: 'consult', component: () => import('../views/ConsultSpace.vue') },
+        { path: 'admin', name: 'admin', component: () => import('../views/AdminView.vue') },
       ],
     },
   ],
@@ -26,6 +27,16 @@ router.beforeEach((to) => {
   }
   if (token && (to.name === 'login' || to.name === 'register')) {
     return { name: 'cabinet' }
+  }
+  if (to.name === 'admin') {
+    const user = JSON.parse(localStorage.getItem('mun_user') || 'null')
+    if (user?.role !== 'ADMIN') {
+      return { name: 'cabinet' }
+    }
+  }
+  const user = JSON.parse(localStorage.getItem('mun_user') || 'null')
+  if (user?.role === 'ADMIN' && to.name !== 'admin') {
+    return { name: 'admin' }
   }
 })
 

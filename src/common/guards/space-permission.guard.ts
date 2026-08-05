@@ -21,6 +21,9 @@ export class SpacePermissionGuard implements CanActivate {
     try {
       const payload = await this.jwtService.verifyAsync(token);
       request['user'] = { ...payload, id: payload.sub };
+      if (payload.role === 'ADMIN') {
+        throw new ForbiddenException('管理员无文件空间权限');
+      }
       
       // 从 JWT 中解析 cabinetId 和 role
       const { cabinetId, role } = payload;

@@ -9,6 +9,7 @@ import type { FileEntity } from '../types'
 const auth = useAuthStore()
 
 const loading = ref(false)
+const uploading = ref(false)
 const files = ref<FileEntity[]>([])
 const uploadRef = ref<UploadInstance>()
 
@@ -33,6 +34,8 @@ function formatTime(value: string): string {
 }
 
 function handleFileChange(uploadFile: UploadFile) {
+  // 选择文件即开始上传；若已有文件在上传中则忽略本次选择，避免并发竞态
+  if (uploading.value) return
   uploadRef.value?.clearFiles()
   const rawFile = uploadFile.raw
   if (!rawFile) return
@@ -40,7 +43,7 @@ function handleFileChange(uploadFile: UploadFile) {
 }
 
 async function handleUpload(file: File) {
-  loading.value = true
+  uploading.value = true
   try {
     await filesApi.upload('PUBLIC', file)
     ElMessage.success('上传成功')
@@ -48,7 +51,7 @@ async function handleUpload(file: File) {
   } catch {
     // 错误提示由 axios 拦截器统一处理
   } finally {
-    loading.value = false
+    uploading.value = false
   }
 }
 
@@ -104,8 +107,9 @@ onMounted(loadFiles)
         :show-file-list="false"
         :auto-upload="false"
         :on-change="handleFileChange"
+        :disabled="uploading"
       >
-        <el-button type="primary">
+        <el-button type="primary" :loading="uploading" :disabled="uploading">
           <el-icon><Upload /></el-icon>
           <span class="upload-text">上传文件</span>
         </el-button>

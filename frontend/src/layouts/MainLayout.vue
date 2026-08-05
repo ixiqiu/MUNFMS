@@ -13,8 +13,15 @@ const spaceTitle = computed(() => {
     public: { title: '公共空间', subtitle: '官方发布区，全员可读' },
     conference: { title: '会议空间', subtitle: '大会文件提交与审核' },
     consult: { title: '磋商空间', subtitle: '双边文件磋商（传纸条）' },
+    admin: { title: '系统管理', subtitle: '账户与内阁管理' },
   }
   return map[route.name as string] || { title: '', subtitle: '' }
+})
+
+const isAdmin = computed(() => auth.user?.role === 'ADMIN')
+const roleLabel = computed(() => {
+  if (auth.user?.role === 'ADMIN') return '系统管理员'
+  return auth.isAcademic ? '学术组' : '代表'
 })
 
 function logout() {
@@ -31,22 +38,30 @@ function logout() {
         <span>模联文件管理</span>
       </div>
       <el-menu :default-active="route.name as string" router class="menu">
-        <el-menu-item index="cabinet">
-          <el-icon><FolderOpened /></el-icon>
-          <span>内阁空间</span>
-        </el-menu-item>
-        <el-menu-item index="public">
-          <el-icon><Files /></el-icon>
-          <span>公共空间</span>
-        </el-menu-item>
-        <el-menu-item index="conference">
-          <el-icon><Document /></el-icon>
-          <span>会议空间</span>
-        </el-menu-item>
-        <el-menu-item index="consult">
-          <el-icon><ChatDotRound /></el-icon>
-          <span>磋商空间</span>
-        </el-menu-item>
+        <template v-if="isAdmin">
+          <el-menu-item index="admin">
+            <el-icon><Setting /></el-icon>
+            <span>系统管理</span>
+          </el-menu-item>
+        </template>
+        <template v-else>
+          <el-menu-item index="cabinet">
+            <el-icon><FolderOpened /></el-icon>
+            <span>内阁空间</span>
+          </el-menu-item>
+          <el-menu-item index="public">
+            <el-icon><Files /></el-icon>
+            <span>公共空间</span>
+          </el-menu-item>
+          <el-menu-item index="conference">
+            <el-icon><Document /></el-icon>
+            <span>会议空间</span>
+          </el-menu-item>
+          <el-menu-item index="consult">
+            <el-icon><ChatDotRound /></el-icon>
+            <span>磋商空间</span>
+          </el-menu-item>
+        </template>
       </el-menu>
     </el-aside>
 
@@ -65,7 +80,7 @@ function logout() {
               <div class="user-name">{{ auth.user?.name }}</div>
               <div class="user-role">
                 {{ auth.user?.cabinet?.name || '' }} ·
-                {{ auth.isAcademic ? '学术组' : '代表' }}
+                {{ roleLabel }}
               </div>
             </div>
             <el-icon><ArrowDown /></el-icon>

@@ -1,6 +1,7 @@
 import { Controller, Post, Body, UseGuards, Request } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthGuard } from '@nestjs/passport';
+import { UserRole } from '../entities/user.entity';
 
 @Controller('auth')
 export class AuthController {
@@ -18,17 +19,15 @@ export class AuthController {
     body: {
       name: string;
       password: string;
-      role: string;
-      cabinetName: string;
-      cabinetType: string;
+      role: UserRole;
+      cabinetId: string;
     },
   ) {
     const user = await this.authService.registerWithCabinet(
       body.name,
       body.password,
       body.role,
-      body.cabinetName,
-      body.cabinetType,
+      body.cabinetId,
     );
     return { message: '注册成功', user };
   }

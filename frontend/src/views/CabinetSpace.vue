@@ -12,7 +12,6 @@ const isAcademic = auth.isAcademic
 const files = ref<FileEntity[]>([])
 const loading = ref(false)
 const uploading = ref(false)
-const selectedFile = ref<File | null>(null)
 const uploadRef = ref<UploadInstance>()
 
 /** 将 ISO 时间字符串格式化为 YYYY-MM-DD HH:mm */
@@ -34,29 +33,21 @@ async function loadFiles(): Promise<void> {
   }
 }
 
-function handleFileChange(file: UploadFile): void {
-  if (file.raw) {
-    selectedFile.value = file.raw
-  }
-}
-
-async function handleUpload(): Promise<void> {
-  const file = selectedFile.value
-  if (!file) {
-    ElMessage.warning('请先选择要上传的文件')
-    return
-  }
+async function handleFileChange(file: UploadFile): Promise<void> {
+  // 选择文件即开始上传；若已有文件在上传中则忽略本次选择，避免并发竞态
+  if (uploading.value) return
+  const raw = file.raw
+  if (!raw) return
   uploading.value = true
   try {
-    await filesApi.upload('CABINET', file)
+    await filesApi.upload('CABINET', raw)
     ElMessage.success('上传成功')
-    selectedFile.value = null
-    uploadRef.value?.clearFiles()
     await loadFiles()
   } catch {
     // 错误提示由 axios 拦截器统一处理
   } finally {
     uploading.value = false
+    uploadRef.value?.clearFiles()
   }
 }
 
@@ -121,30 +112,14 @@ onMounted(() => {
           :auto-upload="false"
           :show-file-list="false"
           :on-change="handleFileChange"
+          :disabled="uploading"
         >
-          <el-button :disabled="uploading">
-            <el-icon><FolderAdd /></el-icon>
+          <el-button type="primary" :loading="uploading" :disabled="uploading">
+            <el-icon><Upload /></el-icon>
             <span>选择文件</span>
           </el-button>
         </el-upload>
-        <el-button
-          type="primary"
-          :loading="uploading"
-          :disabled="!selectedFile"
-          @click="handleUpload"
-        >
-          <el-icon><Upload /></el-icon>
-          <span>上传文件</span>
-        </el-button>
       </div>
-    </div>
-
-    <div class="pick-hint" :class="{ 'has-file': !!selectedFile }">
-      <template v-if="selectedFile">
-        <el-icon class="pick-hint-icon"><Document /></el-icon>
-        <span class="pick-hint-name">{{ selectedFile.name }}</span>
-      </template>
-      <template v-else>请先选择文件，再点击「上传文件」</template>
     </div>
 
     <el-table :data="files" row-key="id" class="file-table">
@@ -195,31 +170,6 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 10px;
-}
-
-.pick-hint {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: #909399;
-  margin-bottom: 12px;
-}
-
-.pick-hint.has-file {
-  color: #606266;
-}
-
-.pick-hint-icon {
-  flex-shrink: 0;
-  color: #409eff;
-}
-
-.pick-hint-name {
-  max-width: 320px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .file-table {

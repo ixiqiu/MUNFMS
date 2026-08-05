@@ -1,7 +1,8 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn } from 'typeorm';
 import { Cabinet } from './cabinet.entity';
 
 export enum UserRole {
+  ADMIN = 'ADMIN',
   DELEGATE = 'DELEGATE',
   ACADEMIC = 'ACADEMIC',
 }
@@ -25,8 +26,11 @@ export class User {
 
   @ManyToOne(() => Cabinet)
   @JoinColumn({ name: 'cabinetId' })
-  cabinet: Cabinet;
+  cabinet: Cabinet | null;
 
-  @Column()
-  cabinetId: string;
+  @Column({ nullable: true })
+  cabinetId: string | null;
+
+  @CreateDateColumn()
+  createdAt: Date;
 }

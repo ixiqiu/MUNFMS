@@ -5,6 +5,7 @@ import { AuthModule } from './auth/auth.module';
 import { FilesModule } from './files/files.module';
 import { SessionsModule } from './sessions/sessions.module';
 import { CabinetsModule } from './cabinets/cabinets.module';
+import { AdminModule } from './admin/admin.module';
 import { Cabinet } from './entities/cabinet.entity';
 import { User } from './entities/user.entity';
 import { FileEntity } from './entities/file.entity';
@@ -56,6 +57,7 @@ import { Message } from './entities/message.entity';
     FilesModule,
     SessionsModule,
     CabinetsModule,
+    AdminModule,
   ],
 })
 export class AppModule {}
