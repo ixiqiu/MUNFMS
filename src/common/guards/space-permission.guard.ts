@@ -20,14 +20,13 @@ export class SpacePermissionGuard implements CanActivate {
 
     try {
       const payload = await this.jwtService.verifyAsync(token);
-      request['user'] = payload;
+      request['user'] = { ...payload, id: payload.sub };
       
       // 从 JWT 中解析 cabinetId 和 role
       const { cabinetId, role } = payload;
       
       // 获取请求参数
       const spaceType = request.query.space as string;
-      const fileId = request.params.id as string;
       
       // 根据空间类型进行权限校验
       if (spaceType === 'CABINET') {

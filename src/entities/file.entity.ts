@@ -18,7 +18,7 @@ export class FileEntity {
   storagePath: string; // 本地物理相对路径 (如: cabinet/uuid_xxx.pdf)
 
   @Column({
-    type: 'enum',
+    type: 'simple-enum',
     enum: SpaceType,
   })
   spaceType: SpaceType;
