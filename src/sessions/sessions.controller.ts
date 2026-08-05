@@ -9,6 +9,7 @@ import {
   UploadedFile, 
   Res,
   StreamableFile,
+  BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -16,9 +17,11 @@ import { extname } from 'path';
 import { Response } from 'express';
 import { SessionsService } from './sessions.service';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { UserRole } from '../entities/user.entity';
 
 @Controller('sessions')
+@UseGuards(JwtAuthGuard)
 export class SessionsController {
   constructor(private readonly sessionsService: SessionsService) {}
 
@@ -75,7 +78,7 @@ export class SessionsController {
     @CurrentUser() user: { id: string; cabinetId: string; role: UserRole },
   ) {
     if (!file) {
-      throw new Error('未提供文件');
+      throw new BadRequestException('未提供文件');
     }
 
     const message = await this.sessionsService.sendMessage(id, file, user.cabinetId, user.id);

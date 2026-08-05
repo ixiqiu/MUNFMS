@@ -8,12 +8,8 @@ export class AuthController {
 
   @Post('login')
   @UseGuards(AuthGuard('local'))
-  async login(@Body() body: { username: string; password: string }) {
-    const user = await this.authService.validateUser(
-      body.username,
-      body.password,
-    );
-    return this.authService.login(user);
+  async login(@Request() req) {
+    return this.authService.login(req.user);
   }
 
   @Post('register')

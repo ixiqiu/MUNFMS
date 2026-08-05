@@ -4,6 +4,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
 import { FilesModule } from './files/files.module';
 import { SessionsModule } from './sessions/sessions.module';
+import { CabinetsModule } from './cabinets/cabinets.module';
 import { Cabinet } from './entities/cabinet.entity';
 import { User } from './entities/user.entity';
 import { FileEntity } from './entities/file.entity';
@@ -54,6 +55,7 @@ import { Message } from './entities/message.entity';
     AuthModule,
     FilesModule,
     SessionsModule,
+    CabinetsModule,
   ],
 })
 export class AppModule {}

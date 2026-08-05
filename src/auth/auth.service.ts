@@ -1,10 +1,14 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { User } from '../entities/user.entity';
-import { Cabinet } from '../entities/cabinet.entity';
+import { User, UserRole } from '../entities/user.entity';
+import { Cabinet, CabinetType } from '../entities/cabinet.entity';
 
 @Injectable()
 export class AuthService {
@@ -61,6 +65,14 @@ export class AuthService {
     cabinetName: string,
     cabinetType: string,
   ) {
+    if (!Object.values(CabinetType).includes(cabinetType as CabinetType)) {
+      throw new BadRequestException('无效的内阁类型');
+    }
+
+    if (!Object.values(UserRole).includes(role as UserRole)) {
+      throw new BadRequestException('无效的用户角色');
+    }
+
     // 查找或创建内阁
     let cabinet = await this.cabinetRepository.findOne({
       where: { name: cabinetName },
@@ -69,7 +81,7 @@ export class AuthService {
     if (!cabinet) {
       cabinet = this.cabinetRepository.create({
         name: cabinetName,
-        type: cabinetType,
+        type: cabinetType as CabinetType,
       });
       cabinet = await this.cabinetRepository.save(cabinet);
     }
@@ -88,11 +100,13 @@ export class AuthService {
     const user = this.userRepository.create({
       name,
       passwordHash,
-      role,
+      role: role as UserRole,
       cabinet,
       cabinetId: cabinet.id,
     });
 
-    return this.userRepository.save(user);
+    const saved = await this.userRepository.save(user);
+    const { passwordHash: _passwordHash, ...safeUser } = saved;
+    return safeUser;
   }
 }

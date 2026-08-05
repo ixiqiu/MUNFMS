@@ -1,9 +1,9 @@
 import { Injectable, ForbiddenException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Brackets, In } from 'typeorm';
+import { Repository, Not, In } from 'typeorm';
 import { Session } from '../entities/session.entity';
 import { Message } from '../entities/message.entity';
-import { FileEntity } from '../entities/file.entity';
+import { FileEntity, SpaceType } from '../entities/file.entity';
 import { Cabinet } from '../entities/cabinet.entity';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -30,6 +30,10 @@ export class SessionsService {
     if (!fs.existsSync(this.uploadBaseDir)) {
       fs.mkdirSync(this.uploadBaseDir, { recursive: true });
     }
+    const tempDir = path.join(process.cwd(), 'uploads', 'temp');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
   }
 
   /**
@@ -51,7 +55,7 @@ export class SessionsService {
         where: {
           sessionId: session.id,
           isRead: false,
-          senderCabinetId: Brackets(qb => qb.where('senderCabinetId != :cabinetId', { cabinetId })),
+          senderCabinetId: Not(cabinetId),
         },
       });
 
@@ -169,7 +173,7 @@ export class SessionsService {
       const fileEntity = this.fileRepo.create({
         fileName: file.originalname,
         storagePath: relativePath,
-        spaceType: 'CABINET' as any, // 磋商文件归类为 CABINET 类型
+        spaceType: SpaceType.CABINET,
         uploaderId,
         targetId: senderCabinetId,
         isFromConference: false,
@@ -224,7 +228,7 @@ export class SessionsService {
       throw new ForbiddenException('无权访问该文件');
     }
 
-    const fullPath = path.join(this.uploadBaseDir, '..', '..', message.file.storagePath);
+    const fullPath = path.join(process.cwd(), 'uploads', message.file.storagePath);
     
     if (!fs.existsSync(fullPath)) {
       throw new NotFoundException('物理文件不存在');

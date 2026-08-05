@@ -15,7 +15,7 @@ export class User {
   name: string;
 
   @Column({
-    type: 'enum',
+    type: 'simple-enum',
     enum: UserRole,
   })
   role: UserRole;

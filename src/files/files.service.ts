@@ -26,6 +26,7 @@ export class FilesService {
       path.join(this.uploadBaseDir, 'cabinet'),
       path.join(this.uploadBaseDir, 'public'),
       path.join(this.uploadBaseDir, 'conference'),
+      path.join(this.uploadBaseDir, 'temp'),
     ];
     dirs.forEach(dir => {
       if (!fs.existsSync(dir)) {

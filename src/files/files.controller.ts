@@ -11,6 +11,7 @@ import {
   Body,
   Res,
   StreamableFile,
+  BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -40,6 +41,7 @@ export class FilesController {
         callback(null, `${uniqueSuffix}${ext}`);
       },
     }),
+    limits: { fileSize: 50 * 1024 * 1024 },
   }))
   async uploadFile(
     @UploadedFile() file: Express.Multer.File,
@@ -47,7 +49,7 @@ export class FilesController {
     @CurrentUser() user: { id: string; cabinetId: string; role: UserRole },
   ) {
     if (!file) {
-      throw new Error('未提供文件');
+      throw new BadRequestException('未提供文件');
     }
     
     const result = await this.filesService.uploadFile(file, spaceType, user);

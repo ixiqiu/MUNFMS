@@ -16,7 +16,7 @@ export class Cabinet {
   name: string; // 如 "法国", "主席团"
 
   @Column({
-    type: 'enum',
+    type: 'simple-enum',
     enum: CabinetType,
   })
   type: CabinetType;
