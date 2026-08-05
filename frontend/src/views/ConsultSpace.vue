@@ -115,7 +115,7 @@ const candidateCabinets = computed(() =>
   cabinets.value.filter((c) => c.id !== myCabinetId.value),
 )
 
-const canCreate = computed(() => selectedCabinetIds.value.length >= 2)
+const canCreate = computed(() => selectedCabinetIds.value.length >= 1)
 
 async function openCreateDialog() {
   selectedCabinetIds.value = []
@@ -130,7 +130,7 @@ async function openCreateDialog() {
 
 async function createSession() {
   if (!canCreate.value) {
-    ElMessage.warning('请至少选择 2 个内阁')
+    ElMessage.warning('请至少选择 1 个内阁')
     return
   }
   creating.value = true
@@ -409,14 +409,14 @@ function isOwn(message: Message): boolean {
     <el-dialog v-model="dialogVisible" title="新建群聊" width="480px" :close-on-click-modal="false">
       <div class="dialog-body">
         <el-alert
-          v-if="candidateCabinets.length < 2"
+          v-if="candidateCabinets.length < 1"
           type="warning"
           :closable="false"
           title="内阁不足，无法创建群聊"
           show-icon
         />
         <template v-else>
-          <p class="dialog-tip">选择群成员（至少 2 个内阁，不含自己）</p>
+          <p class="dialog-tip">选择群成员（至少 1 个内阁，自己会自动加入）</p>
           <el-select
             v-model="selectedCabinetIds"
             multiple
@@ -439,7 +439,7 @@ function isOwn(message: Message): boolean {
             clearable
           />
           <p v-if="!canCreate" class="dialog-hint">
-            请至少再选择 {{ 2 - selectedCabinetIds.length }} 个内阁
+            请至少再选择 1 个内阁
           </p>
         </template>
       </div>

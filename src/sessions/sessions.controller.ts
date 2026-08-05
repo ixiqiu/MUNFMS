@@ -49,15 +49,20 @@ export class SessionsController {
   }
 
   /**
-   * 拉群：创建或获取已有群聊（至少 2 个内阁，可自定义群名）
+   * 拉群：创建或获取已有群聊（创建者自动成为成员，至少 1 个其他内阁）
    */
   @Post()
   async createGroupSession(
     @Body() body: { cabinetIds: string[]; name?: string },
+    @CurrentUser() user: { id: string; cabinetId: string; role: UserRole },
   ) {
+    if (user.role === UserRole.ACADEMIC || !user.cabinetId) {
+      throw new BadRequestException('只有代表可以创建群聊');
+    }
     const session = await this.sessionsService.createGroupSession(
       body.cabinetIds,
       body.name,
+      user.cabinetId,
     );
     return { session };
   }

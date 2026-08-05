@@ -74,8 +74,12 @@ export class SessionsService {
     }
   }
 
-  async createGroupSession(cabinetIds: string[], name?: string): Promise<Session> {
-    const uniqueIds = [...new Set(cabinetIds)];
+  async createGroupSession(
+    cabinetIds: string[],
+    name: string | undefined,
+    creatorCabinetId: string,
+  ): Promise<Session> {
+    const uniqueIds = [...new Set([...cabinetIds, creatorCabinetId])];
     if (uniqueIds.length < 2) {
       throw new BadRequestException('群聊至少需要 2 个内阁');
     }
