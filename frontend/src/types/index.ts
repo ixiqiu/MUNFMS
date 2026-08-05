@@ -1,4 +1,4 @@
-export type UserRole = 'DELEGATE' | 'ACADEMIC'
+export type UserRole = 'ADMIN' | 'DELEGATE' | 'ACADEMIC'
 export type CabinetType = 'CABINET' | 'BUREAU' | 'CRISIS'
 export type SpaceType = 'CABINET' | 'PUBLIC' | 'CONFERENCE'
 
@@ -6,6 +6,15 @@ export interface Cabinet {
   id: string
   name: string
   type: CabinetType
+}
+
+export interface AdminUser {
+  id: string
+  name: string
+  role: UserRole
+  cabinetId: string | null
+  cabinet: Cabinet | null
+  createdAt: string
 }
 
 export interface User {
@@ -27,6 +36,7 @@ export interface FileEntity {
   storagePath: string
   spaceType: SpaceType
   uploaderId: string
+  uploaderName?: string
   targetId: string
   isFromConference: boolean
   createdAt: string

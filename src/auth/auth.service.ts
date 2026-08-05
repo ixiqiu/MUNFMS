@@ -8,7 +8,7 @@ import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { User, UserRole } from '../entities/user.entity';
-import { Cabinet, CabinetType } from '../entities/cabinet.entity';
+import { Cabinet } from '../entities/cabinet.entity';
 
 @Injectable()
 export class AuthService {
@@ -61,29 +61,23 @@ export class AuthService {
   async registerWithCabinet(
     name: string,
     password: string,
-    role: string,
-    cabinetName: string,
-    cabinetType: string,
+    role: UserRole,
+    cabinetId: string,
   ) {
-    if (!Object.values(CabinetType).includes(cabinetType as CabinetType)) {
-      throw new BadRequestException('无效的内阁类型');
+    if (role === UserRole.ADMIN) {
+      throw new BadRequestException('不允许注册管理员账号');
     }
 
-    if (!Object.values(UserRole).includes(role as UserRole)) {
+    if (!Object.values(UserRole).includes(role)) {
       throw new BadRequestException('无效的用户角色');
     }
 
-    // 查找或创建内阁
-    let cabinet = await this.cabinetRepository.findOne({
-      where: { name: cabinetName },
+    const cabinet = await this.cabinetRepository.findOne({
+      where: { id: cabinetId },
     });
 
     if (!cabinet) {
-      cabinet = this.cabinetRepository.create({
-        name: cabinetName,
-        type: cabinetType as CabinetType,
-      });
-      cabinet = await this.cabinetRepository.save(cabinet);
+      throw new BadRequestException('所选内阁不存在');
     }
 
     // 检查用户是否已存在
@@ -100,7 +94,7 @@ export class AuthService {
     const user = this.userRepository.create({
       name,
       passwordHash,
-      role: role as UserRole,
+      role,
       cabinet,
       cabinetId: cabinet.id,
     });

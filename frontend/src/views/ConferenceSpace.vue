@@ -32,7 +32,9 @@ function formatTime(value: string): string {
 }
 
 function uploaderName(row: FileEntity): string {
-  // 后端仅返回 uploaderId，仅当与当前用户匹配时可解析出姓名，否则显示占位符
+  if (row.uploaderName) {
+    return row.uploaderName
+  }
   if (auth.user && row.uploaderId === auth.user.id) {
     return auth.user.name
   }
@@ -56,6 +58,8 @@ function handleTabChange() {
 }
 
 async function handleFileChange(uploadFile: UploadFile) {
+  // 选择文件即开始上传；若已有文件在上传中则忽略本次选择，避免并发竞态
+  if (uploading.value) return
   const raw = uploadFile.raw
   if (!raw) return
   uploading.value = true

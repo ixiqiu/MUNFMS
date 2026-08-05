@@ -144,7 +144,25 @@ export class FilesService {
     }
 
     query.orderBy('file.createdAt', 'DESC');
-    return await query.getMany();
+    const files = await query.getMany();
+    return this.attachUploaderNames(files);
+  }
+
+  private async attachUploaderNames(
+    files: FileEntity[],
+  ): Promise<(FileEntity & { uploaderName?: string })[]> {
+    const uploaderIds = [...new Set(files.map((f) => f.uploaderId))];
+    if (uploaderIds.length === 0) {
+      return files;
+    }
+    const users = await this.userRepo.find({
+      where: uploaderIds.map((id) => ({ id })),
+    });
+    const nameMap = new Map(users.map((u) => [u.id, u.name]));
+    return files.map((f) => ({
+      ...f,
+      uploaderName: nameMap.get(f.uploaderId),
+    }));
   }
 
   /**

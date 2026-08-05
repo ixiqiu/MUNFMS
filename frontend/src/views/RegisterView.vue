@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { authApi } from '../api'
-import type { CabinetType, UserRole } from '../types'
+import { authApi, cabinetsApi } from '../api'
+import type { Cabinet } from '../types'
 
 const router = useRouter()
 
@@ -11,25 +11,43 @@ const form = ref({
   name: '',
   password: '',
   confirm: '',
-  role: 'DELEGATE' as UserRole,
-  cabinetName: '',
-  cabinetType: 'CABINET' as CabinetType,
+  role: 'DELEGATE' as 'DELEGATE' | 'ACADEMIC',
+  cabinetId: '',
 })
 const loading = ref(false)
+const cabinets = ref<Cabinet[]>([])
+const cabinetLoading = ref(false)
 
 const roleOptions = [
   { value: 'DELEGATE', label: '代表（归属内阁）' },
   { value: 'ACADEMIC', label: '学术组（主席团/危机团队）' },
 ]
 
-const typeOptions: { value: CabinetType; label: string; hint: string }[] = [
-  { value: 'CABINET', label: '内阁', hint: '国家/代表团' },
-  { value: 'BUREAU', label: '主席团', hint: '学术组' },
-  { value: 'CRISIS', label: '危机团队', hint: '学术组' },
-]
+const typeLabel: Record<string, string> = {
+  CABINET: '内阁',
+  BUREAU: '主席团',
+  CRISIS: '危机团队',
+}
 
-function onRoleChange(role: UserRole) {
-  form.value.cabinetType = role === 'ACADEMIC' ? 'BUREAU' : 'CABINET'
+const availableCabinets = computed(() =>
+  cabinets.value.filter((c) =>
+    form.value.role === 'DELEGATE' ? c.type === 'CABINET' : c.type !== 'CABINET',
+  ),
+)
+
+async function loadCabinets() {
+  cabinetLoading.value = true
+  try {
+    cabinets.value = await cabinetsApi.list()
+  } catch {
+    // 错误提示由拦截器统一处理
+  } finally {
+    cabinetLoading.value = false
+  }
+}
+
+function onRoleChange() {
+  form.value.cabinetId = ''
 }
 
 async function submit() {
@@ -45,8 +63,8 @@ async function submit() {
     ElMessage.warning('两次输入的密码不一致')
     return
   }
-  if (!form.value.cabinetName) {
-    ElMessage.warning('请填写组织名称')
+  if (!form.value.cabinetId) {
+    ElMessage.warning('请选择所属组织')
     return
   }
   loading.value = true
@@ -55,8 +73,7 @@ async function submit() {
       name: form.value.name,
       password: form.value.password,
       role: form.value.role,
-      cabinetName: form.value.cabinetName,
-      cabinetType: form.value.cabinetType,
+      cabinetId: form.value.cabinetId,
     })
     ElMessage.success('注册成功，请登录')
     router.push('/login')
@@ -66,6 +83,8 @@ async function submit() {
     loading.value = false
   }
 }
+
+onMounted(loadCabinets)
 </script>
 
 <template>
@@ -97,19 +116,20 @@ async function submit() {
           </el-radio-group>
         </el-form-item>
 
-        <el-form-item label="组织类型">
-          <el-select v-model="form.cabinetType" style="width: 100%">
+        <el-form-item label="所属组织">
+          <el-select
+            v-model="form.cabinetId"
+            style="width: 100%"
+            :loading="cabinetLoading"
+            placeholder="请选择管理员开设的组织"
+          >
             <el-option
-              v-for="opt in typeOptions"
-              :key="opt.value"
-              :value="opt.value"
-              :label="`${opt.label}（${opt.hint}）`"
+              v-for="c in availableCabinets"
+              :key="c.id"
+              :value="c.id"
+              :label="`${c.name}（${typeLabel[c.type] || c.type}）`"
             />
           </el-select>
-        </el-form-item>
-
-        <el-form-item label="组织名称">
-          <el-input v-model="form.cabinetName" placeholder="如：法国 / 主席团 / 危机团队" />
         </el-form-item>
 
         <el-button type="primary" class="submit-btn" size="large" :loading="loading" @click="submit">
