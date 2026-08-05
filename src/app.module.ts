@@ -19,7 +19,7 @@ import { Message } from './entities/message.entity';
       isGlobal: true,
       envFilePath: '.env',
     }),
-    
+
     // TypeORM 数据库配置
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
