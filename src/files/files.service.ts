@@ -96,7 +96,11 @@ export class FilesService {
     // 生成唯一文件名
     const uniqueFileName = `${uuidv4()}_${file.originalname}`;
     const storagePath = path.join(storageDir, uniqueFileName);
-    const relativePath = path.join(spaceType.toLowerCase(), targetId, uniqueFileName);
+    // relativePath 必须与实际存储位置一致（cabinet 含 targetId 子目录，public/conference 直接存于空间目录）
+    const relativePath =
+      spaceType === SpaceType.CABINET
+        ? path.join(spaceType.toLowerCase(), targetId, uniqueFileName)
+        : path.join(spaceType.toLowerCase(), uniqueFileName);
 
     try {
       // 移动文件到目标位置 (diskStorage 已经保存了临时文件)
