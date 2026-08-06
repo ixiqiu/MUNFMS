@@ -1,0 +1,22 @@
+name: Mirror from Gitea
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone source repository
+        run: git clone --mirror https://git.ssug.top/xiqiu/MUNFMS source
+
+      - name: Push to GitHub
+        run: |
+          cd source
+          git remote set-url --push origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+          git push --mirror
