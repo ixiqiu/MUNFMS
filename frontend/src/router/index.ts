@@ -33,6 +33,7 @@ const router = createRouter({
         { path: 'conference', name: 'conference', component: () => import('../views/ConferenceSpace.vue') },
         { path: 'consult', name: 'consult', component: () => import('../views/ConsultSpace.vue') },
         { path: 'admin', name: 'admin', component: () => import('../views/AdminView.vue') },
+        { path: 'about', name: 'about', component: () => import('../views/AboutView.vue') },
       ],
     },
   ],
@@ -53,7 +54,7 @@ router.beforeEach((to) => {
     }
   }
   const user = JSON.parse(localStorage.getItem('mun_user') || 'null')
-  if (user?.role === 'ADMIN' && to.name !== 'admin') {
+  if (user?.role === 'ADMIN' && to.name !== 'admin' && to.name !== 'about') {
     return { name: 'admin' }
   }
 })

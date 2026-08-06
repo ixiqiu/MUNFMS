@@ -32,6 +32,7 @@ const spaceTitle = computed(() => {
     conference: { title: '会议空间', subtitle: '大会文件提交与审核' },
     consult: { title: '磋商空间', subtitle: '双边文件磋商（传纸条）' },
     admin: { title: '系统管理', subtitle: '账户与内阁管理' },
+    about: { title: '关于', subtitle: '项目信息与许可证' },
   }
   return map[route.name as string] || { title: '', subtitle: '' }
 })
@@ -80,6 +81,10 @@ function logout() {
             <span>磋商空间</span>
           </el-menu-item>
         </template>
+        <el-menu-item index="about">
+          <el-icon><InfoFilled /></el-icon>
+          <span>关于</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
 
