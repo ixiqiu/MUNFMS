@@ -24,6 +24,7 @@ import { FilesModule } from './files/files.module';
 import { SessionsModule } from './sessions/sessions.module';
 import { CabinetsModule } from './cabinets/cabinets.module';
 import { AdminModule } from './admin/admin.module';
+import { LicenseModule } from './license/license.module';
 import { Cabinet } from './entities/cabinet.entity';
 import { User } from './entities/user.entity';
 import { FileEntity } from './entities/file.entity';
@@ -77,6 +78,7 @@ import { Message } from './entities/message.entity';
     SessionsModule,
     CabinetsModule,
     AdminModule,
+    LicenseModule,
   ],
 })
 export class AppModule {}

@@ -103,6 +103,12 @@ export const cabinetsApi = {
   },
 }
 
+export const aboutApi = {
+  getLicense() {
+    return client.get<{ text: string }>('/license').then((r) => r.data)
+  },
+}
+
 export const adminApi = {
   users() {
     return client.get<AdminUser[]>('/admin/users').then((r) => r.data)
