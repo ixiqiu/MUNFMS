@@ -101,7 +101,9 @@ let FilesService = class FilesService {
         }
         const uniqueFileName = `${(0, uuid_1.v4)()}_${file.originalname}`;
         const storagePath = path.join(storageDir, uniqueFileName);
-        const relativePath = path.join(spaceType.toLowerCase(), targetId, uniqueFileName);
+        const relativePath = spaceType === file_entity_1.SpaceType.CABINET
+            ? path.join(spaceType.toLowerCase(), targetId, uniqueFileName)
+            : path.join(spaceType.toLowerCase(), uniqueFileName);
         try {
             await fs.promises.rename(file.path, storagePath);
             const fileEntity = this.fileRepo.create({
