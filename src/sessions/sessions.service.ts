@@ -25,6 +25,7 @@ import { Message, MessageSenderType } from '../entities/message.entity';
 import { FileEntity, SpaceType } from '../entities/file.entity';
 import { Cabinet } from '../entities/cabinet.entity';
 import { User, UserRole } from '../entities/user.entity';
+import { EventsService } from '../events/events.service';
 import * as fs from 'fs';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
@@ -46,6 +47,7 @@ export class SessionsService {
     private cabinetRepo: Repository<Cabinet>,
     @InjectRepository(User)
     private userRepo: Repository<User>,
+    private eventsService: EventsService,
   ) {
     this.ensureUploadDirs();
   }
@@ -135,6 +137,7 @@ export class SessionsService {
     await this.sessionMemberRepo.save(
       uniqueIds.map((cabinetId) => ({ sessionId: session.id, cabinetId })),
     );
+    this.eventsService.emit({ type: 'session.changed', ts: Date.now() });
     return session;
   }
 
@@ -152,7 +155,9 @@ export class SessionsService {
       throw new ForbiddenException('无权操作该群聊');
     }
     session.name = name;
-    return this.sessionRepo.save(session);
+    const savedSession = await this.sessionRepo.save(session);
+    this.eventsService.emit({ type: 'session.changed', ts: Date.now() });
+    return savedSession;
   }
 
   async getSessions(cabinetId: string, role: UserRole): Promise<any[]> {
@@ -336,6 +341,22 @@ export class SessionsService {
 
       session.lastMessageTime = new Date();
       await this.sessionRepo.save(session);
+
+      this.eventsService.emit({
+        type: 'message.new',
+        sessionId,
+        actorId: uploaderId,
+        ts: Date.now(),
+      });
+      if (senderType === MessageSenderType.CABINET) {
+        this.eventsService.emit({
+          type: 'file.changed',
+          spaceType: SpaceType.CABINET,
+          targetId: senderCabinetId,
+          actorId: uploaderId,
+          ts: Date.now(),
+        });
+      }
 
       return savedMessage;
     } catch (error) {

@@ -31,6 +31,7 @@ import { Cabinet, CabinetType } from '../entities/cabinet.entity';
 import { FileEntity } from '../entities/file.entity';
 import { Session } from '../entities/session.entity';
 import { Message } from '../entities/message.entity';
+import { EventsService } from '../events/events.service';
 
 @Injectable()
 export class AdminService {
@@ -47,6 +48,7 @@ export class AdminService {
     private sessionRepo: Repository<Session>,
     @InjectRepository(Message)
     private messageRepo: Repository<Message>,
+    private eventsService: EventsService,
   ) {}
 
   async seedAdmin() {
@@ -214,5 +216,11 @@ export class AdminService {
     if (fs.existsSync(cabinetDir)) {
       fs.rmSync(cabinetDir, { recursive: true, force: true });
     }
+
+    this.eventsService.emit({
+      type: 'cabinet.deleted',
+      targetId: cabinetId,
+      ts: Date.now(),
+    });
   }
 }

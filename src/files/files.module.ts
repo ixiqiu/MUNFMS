@@ -28,10 +28,12 @@ import { Cabinet } from '../entities/cabinet.entity';
 import { Session } from '../entities/session.entity';
 import { Message } from '../entities/message.entity';
 import { SpacePermissionGuard } from '../common/guards/space-permission.guard';
+import { EventsModule } from '../events/events.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([FileEntity, User, Cabinet, Session, Message]),
+    EventsModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

@@ -21,6 +21,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FileEntity, SpaceType } from '../entities/file.entity';
 import { User, UserRole } from '../entities/user.entity';
+import { EventsService } from '../events/events.service';
 import * as fs from 'fs';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
@@ -34,6 +35,7 @@ export class FilesService {
     private fileRepo: Repository<FileEntity>,
     @InjectRepository(User)
     private userRepo: Repository<User>,
+    private eventsService: EventsService,
   ) {
     // 确保上传目录存在
     this.ensureUploadDirs();
@@ -116,7 +118,15 @@ export class FilesService {
         isFromConference: false,
       });
 
-      return await this.fileRepo.save(fileEntity);
+      const savedFile = await this.fileRepo.save(fileEntity);
+      this.eventsService.emit({
+        type: 'file.changed',
+        spaceType,
+        targetId,
+        actorId: user.id,
+        ts: Date.now(),
+      });
+      return savedFile;
     } catch (error) {
       // 如果数据库保存失败，删除已上传的文件
       if (fs.existsSync(storagePath)) {
@@ -273,7 +283,15 @@ export class FilesService {
         isFromConference: true,
       });
 
-      return await this.fileRepo.save(newFile);
+      const savedFile = await this.fileRepo.save(newFile);
+      this.eventsService.emit({
+        type: 'file.changed',
+        spaceType: SpaceType.PUBLIC,
+        targetId: 'PUBLIC',
+        actorId: user.id,
+        ts: Date.now(),
+      });
+      return savedFile;
     } catch (error) {
       // 如果失败，清理已复制的文件
       if (fs.existsSync(destPath)) {
@@ -313,5 +331,13 @@ export class FilesService {
 
     // 删除数据库记录
     await this.fileRepo.delete(fileId);
+
+    this.eventsService.emit({
+      type: 'file.changed',
+      spaceType: file.spaceType,
+      targetId: file.targetId,
+      actorId: user.id,
+      ts: Date.now(),
+    });
   }
 }

@@ -26,10 +26,12 @@ import { Session } from '../entities/session.entity';
 import { Message } from '../entities/message.entity';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
+import { EventsModule } from '../events/events.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, Cabinet, FileEntity, Session, Message]),
+    EventsModule,
   ],
   controllers: [AdminController],
   providers: [AdminService],
