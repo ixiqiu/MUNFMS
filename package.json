@@ -11,7 +11,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "GPL-3.0",
+  "license": "GPL-3.0-or-later",
   "dependencies": {
     "@nestjs/common": "^11.0.0",
     "@nestjs/config": "^4.0.0",

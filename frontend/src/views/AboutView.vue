@@ -82,7 +82,7 @@ This is free software, and you are welcome to redistribute it under certain cond
         </div>
       </template>
       <p class="desc-text">
-        本项目基于 GNU General Public License v3 发布，您可以在下方查看完整的许可证文本，了解您的权利与义务。
+        本项目基于 GNU General Public License v3 or later 发布，您可以在下方查看完整的许可证文本，了解您的权利与义务。
       </p>
       <el-button type="primary" @click="licenseVisible = true">
         <el-icon><Document /></el-icon>
@@ -107,7 +107,7 @@ This is free software, and you are welcome to redistribute it under certain cond
     <!-- 完整许可证弹窗 -->
     <el-dialog
       v-model="licenseVisible"
-      title="GNU General Public License v3"
+      title="GNU General Public License v3 or later"
       width="800px"
       @open="loadLicense"
     >
