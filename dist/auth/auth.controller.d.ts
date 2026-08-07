@@ -9,6 +9,7 @@ export declare class AuthController {
             id: string;
             name: string;
             role: UserRole;
+            cabinetId: string;
             cabinet: import("../entities").Cabinet;
         };
     }>;

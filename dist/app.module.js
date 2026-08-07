@@ -16,6 +16,7 @@ const sessions_module_1 = require("./sessions/sessions.module");
 const cabinets_module_1 = require("./cabinets/cabinets.module");
 const admin_module_1 = require("./admin/admin.module");
 const license_module_1 = require("./license/license.module");
+const events_module_1 = require("./events/events.module");
 const cabinet_entity_1 = require("./entities/cabinet.entity");
 const user_entity_1 = require("./entities/user.entity");
 const file_entity_1 = require("./entities/file.entity");
@@ -67,6 +68,7 @@ exports.AppModule = AppModule = __decorate([
             cabinets_module_1.CabinetsModule,
             admin_module_1.AdminModule,
             license_module_1.LicenseModule,
+            events_module_1.EventsModule,
         ],
     })
 ], AppModule);

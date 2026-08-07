@@ -14,6 +14,7 @@ export declare class AuthService {
             id: string;
             name: string;
             role: UserRole;
+            cabinetId: string;
             cabinet: Cabinet;
         };
     }>;

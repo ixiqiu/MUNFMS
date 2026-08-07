@@ -19,6 +19,7 @@ const cabinet_entity_1 = require("../entities/cabinet.entity");
 const session_entity_1 = require("../entities/session.entity");
 const message_entity_1 = require("../entities/message.entity");
 const space_permission_guard_1 = require("../common/guards/space-permission.guard");
+const events_module_1 = require("../events/events.module");
 let FilesModule = class FilesModule {
 };
 exports.FilesModule = FilesModule;
@@ -26,6 +27,7 @@ exports.FilesModule = FilesModule = __decorate([
     (0, common_1.Module)({
         imports: [
             typeorm_1.TypeOrmModule.forFeature([file_entity_1.FileEntity, user_entity_1.User, cabinet_entity_1.Cabinet, session_entity_1.Session, message_entity_1.Message]),
+            events_module_1.EventsModule,
             jwt_1.JwtModule.registerAsync({
                 imports: [config_1.ConfigModule],
                 inject: [config_1.ConfigService],

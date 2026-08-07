@@ -22,6 +22,7 @@ const message_entity_1 = require("../entities/message.entity");
 const file_entity_1 = require("../entities/file.entity");
 const cabinet_entity_1 = require("../entities/cabinet.entity");
 const user_entity_1 = require("../entities/user.entity");
+const events_module_1 = require("../events/events.module");
 let SessionsModule = class SessionsModule {
     constructor(sessionsService) {
         this.sessionsService = sessionsService;
@@ -35,6 +36,7 @@ exports.SessionsModule = SessionsModule = __decorate([
     (0, common_1.Module)({
         imports: [
             typeorm_1.TypeOrmModule.forFeature([session_entity_1.Session, session_member_entity_1.SessionMember, message_entity_1.Message, file_entity_1.FileEntity, cabinet_entity_1.Cabinet, user_entity_1.User]),
+            events_module_1.EventsModule,
             jwt_1.JwtModule.registerAsync({
                 imports: [config_1.ConfigModule],
                 inject: [config_1.ConfigService],

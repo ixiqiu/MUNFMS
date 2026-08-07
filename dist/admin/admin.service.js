@@ -57,13 +57,15 @@ const cabinet_entity_1 = require("../entities/cabinet.entity");
 const file_entity_1 = require("../entities/file.entity");
 const session_entity_1 = require("../entities/session.entity");
 const message_entity_1 = require("../entities/message.entity");
+const events_service_1 = require("../events/events.service");
 let AdminService = class AdminService {
-    constructor(userRepo, cabinetRepo, fileRepo, sessionRepo, messageRepo) {
+    constructor(userRepo, cabinetRepo, fileRepo, sessionRepo, messageRepo, eventsService) {
         this.userRepo = userRepo;
         this.cabinetRepo = cabinetRepo;
         this.fileRepo = fileRepo;
         this.sessionRepo = sessionRepo;
         this.messageRepo = messageRepo;
+        this.eventsService = eventsService;
         this.uploadBaseDir = path.join(process.cwd(), 'uploads');
     }
     async seedAdmin() {
@@ -213,6 +215,11 @@ let AdminService = class AdminService {
         if (fs.existsSync(cabinetDir)) {
             fs.rmSync(cabinetDir, { recursive: true, force: true });
         }
+        this.eventsService.emit({
+            type: 'cabinet.deleted',
+            targetId: cabinetId,
+            ts: Date.now(),
+        });
     }
 };
 exports.AdminService = AdminService;
@@ -227,6 +234,7 @@ exports.AdminService = AdminService = __decorate([
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
-        typeorm_2.Repository])
+        typeorm_2.Repository,
+        events_service_1.EventsService])
 ], AdminService);
 //# sourceMappingURL=admin.service.js.map

@@ -51,13 +51,15 @@ const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const file_entity_1 = require("../entities/file.entity");
 const user_entity_1 = require("../entities/user.entity");
+const events_service_1 = require("../events/events.service");
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const uuid_1 = require("uuid");
 let FilesService = class FilesService {
-    constructor(fileRepo, userRepo) {
+    constructor(fileRepo, userRepo, eventsService) {
         this.fileRepo = fileRepo;
         this.userRepo = userRepo;
+        this.eventsService = eventsService;
         this.uploadBaseDir = path.join(process.cwd(), 'uploads');
         this.ensureUploadDirs();
     }
@@ -114,7 +116,15 @@ let FilesService = class FilesService {
                 targetId,
                 isFromConference: false,
             });
-            return await this.fileRepo.save(fileEntity);
+            const savedFile = await this.fileRepo.save(fileEntity);
+            this.eventsService.emit({
+                type: 'file.changed',
+                spaceType,
+                targetId,
+                actorId: user.id,
+                ts: Date.now(),
+            });
+            return savedFile;
         }
         catch (error) {
             if (fs.existsSync(storagePath)) {
@@ -220,7 +230,15 @@ let FilesService = class FilesService {
                 targetId: 'PUBLIC',
                 isFromConference: true,
             });
-            return await this.fileRepo.save(newFile);
+            const savedFile = await this.fileRepo.save(newFile);
+            this.eventsService.emit({
+                type: 'file.changed',
+                spaceType: file_entity_1.SpaceType.PUBLIC,
+                targetId: 'PUBLIC',
+                actorId: user.id,
+                ts: Date.now(),
+            });
+            return savedFile;
         }
         catch (error) {
             if (fs.existsSync(destPath)) {
@@ -247,6 +265,13 @@ let FilesService = class FilesService {
             await fs.promises.unlink(fullPath);
         }
         await this.fileRepo.delete(fileId);
+        this.eventsService.emit({
+            type: 'file.changed',
+            spaceType: file.spaceType,
+            targetId: file.targetId,
+            actorId: user.id,
+            ts: Date.now(),
+        });
     }
 };
 exports.FilesService = FilesService;
@@ -255,6 +280,7 @@ exports.FilesService = FilesService = __decorate([
     __param(0, (0, typeorm_1.InjectRepository)(file_entity_1.FileEntity)),
     __param(1, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
-        typeorm_2.Repository])
+        typeorm_2.Repository,
+        events_service_1.EventsService])
 ], FilesService);
 //# sourceMappingURL=files.service.js.map

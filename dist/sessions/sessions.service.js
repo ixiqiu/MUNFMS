@@ -55,17 +55,19 @@ const message_entity_1 = require("../entities/message.entity");
 const file_entity_1 = require("../entities/file.entity");
 const cabinet_entity_1 = require("../entities/cabinet.entity");
 const user_entity_1 = require("../entities/user.entity");
+const events_service_1 = require("../events/events.service");
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const uuid_1 = require("uuid");
 let SessionsService = class SessionsService {
-    constructor(sessionRepo, sessionMemberRepo, messageRepo, fileRepo, cabinetRepo, userRepo) {
+    constructor(sessionRepo, sessionMemberRepo, messageRepo, fileRepo, cabinetRepo, userRepo, eventsService) {
         this.sessionRepo = sessionRepo;
         this.sessionMemberRepo = sessionMemberRepo;
         this.messageRepo = messageRepo;
         this.fileRepo = fileRepo;
         this.cabinetRepo = cabinetRepo;
         this.userRepo = userRepo;
+        this.eventsService = eventsService;
         this.uploadBaseDir = path.join(process.cwd(), 'uploads', 'consult');
         this.ensureUploadDirs();
     }
@@ -136,6 +138,7 @@ let SessionsService = class SessionsService {
             lastMessageTime: null,
         }));
         await this.sessionMemberRepo.save(uniqueIds.map((cabinetId) => ({ sessionId: session.id, cabinetId })));
+        this.eventsService.emit({ type: 'session.changed', ts: Date.now() });
         return session;
     }
     async renameSession(sessionId, name, cabinetId, role) {
@@ -147,7 +150,9 @@ let SessionsService = class SessionsService {
             throw new common_1.ForbiddenException('无权操作该群聊');
         }
         session.name = name;
-        return this.sessionRepo.save(session);
+        const savedSession = await this.sessionRepo.save(session);
+        this.eventsService.emit({ type: 'session.changed', ts: Date.now() });
+        return savedSession;
     }
     async getSessions(cabinetId, role) {
         let sessions;
@@ -289,6 +294,21 @@ let SessionsService = class SessionsService {
             const savedMessage = await this.messageRepo.save(message);
             session.lastMessageTime = new Date();
             await this.sessionRepo.save(session);
+            this.eventsService.emit({
+                type: 'message.new',
+                sessionId,
+                actorId: uploaderId,
+                ts: Date.now(),
+            });
+            if (senderType === message_entity_1.MessageSenderType.CABINET) {
+                this.eventsService.emit({
+                    type: 'file.changed',
+                    spaceType: file_entity_1.SpaceType.CABINET,
+                    targetId: senderCabinetId,
+                    actorId: uploaderId,
+                    ts: Date.now(),
+                });
+            }
             return savedMessage;
         }
         catch (error) {
@@ -332,6 +352,7 @@ exports.SessionsService = SessionsService = __decorate([
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
-        typeorm_2.Repository])
+        typeorm_2.Repository,
+        events_service_1.EventsService])
 ], SessionsService);
 //# sourceMappingURL=sessions.service.js.map

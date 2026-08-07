@@ -4,14 +4,16 @@ import { Cabinet, CabinetType } from '../entities/cabinet.entity';
 import { FileEntity } from '../entities/file.entity';
 import { Session } from '../entities/session.entity';
 import { Message } from '../entities/message.entity';
+import { EventsService } from '../events/events.service';
 export declare class AdminService {
     private userRepo;
     private cabinetRepo;
     private fileRepo;
     private sessionRepo;
     private messageRepo;
+    private eventsService;
     private readonly uploadBaseDir;
-    constructor(userRepo: Repository<User>, cabinetRepo: Repository<Cabinet>, fileRepo: Repository<FileEntity>, sessionRepo: Repository<Session>, messageRepo: Repository<Message>);
+    constructor(userRepo: Repository<User>, cabinetRepo: Repository<Cabinet>, fileRepo: Repository<FileEntity>, sessionRepo: Repository<Session>, messageRepo: Repository<Message>, eventsService: EventsService);
     seedAdmin(): Promise<User>;
     listUsers(): Promise<{
         id: string;

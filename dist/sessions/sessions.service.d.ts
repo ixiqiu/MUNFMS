@@ -5,6 +5,7 @@ import { Message, MessageSenderType } from '../entities/message.entity';
 import { FileEntity } from '../entities/file.entity';
 import { Cabinet } from '../entities/cabinet.entity';
 import { User, UserRole } from '../entities/user.entity';
+import { EventsService } from '../events/events.service';
 import * as fs from 'fs';
 export declare class SessionsService {
     private sessionRepo;
@@ -13,8 +14,9 @@ export declare class SessionsService {
     private fileRepo;
     private cabinetRepo;
     private userRepo;
+    private eventsService;
     private readonly uploadBaseDir;
-    constructor(sessionRepo: Repository<Session>, sessionMemberRepo: Repository<SessionMember>, messageRepo: Repository<Message>, fileRepo: Repository<FileEntity>, cabinetRepo: Repository<Cabinet>, userRepo: Repository<User>);
+    constructor(sessionRepo: Repository<Session>, sessionMemberRepo: Repository<SessionMember>, messageRepo: Repository<Message>, fileRepo: Repository<FileEntity>, cabinetRepo: Repository<Cabinet>, userRepo: Repository<User>, eventsService: EventsService);
     private ensureUploadDirs;
     private isMember;
     private isAcademic;
