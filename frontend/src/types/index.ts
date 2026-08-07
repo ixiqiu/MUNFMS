@@ -80,3 +80,14 @@ export interface Message {
   createdAt: string
   file?: FileEntity
 }
+
+export type SseEventType = 'file.changed' | 'session.changed' | 'message.new' | 'cabinet.deleted'
+
+export interface SseEvent {
+  type: SseEventType
+  spaceType?: SpaceType
+  targetId?: string | null
+  sessionId?: string
+  actorId?: string
+  ts: number
+}

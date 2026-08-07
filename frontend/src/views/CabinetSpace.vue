@@ -17,13 +17,16 @@
 -->
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { ElMessage, ElMessageBox, type UploadFile, type UploadInstance } from 'element-plus'
+import { Refresh } from '@element-plus/icons-vue'
 import { filesApi } from '../api'
 import { useAuthStore } from '../stores/auth'
+import { useEventsStore } from '../stores/events'
 import type { FileEntity } from '../types'
 
 const auth = useAuthStore()
+const eventsStore = useEventsStore()
 // Pinia store refs auto-unwrap: isAcademic 为布尔值
 const isAcademic = auth.isAcademic
 
@@ -104,11 +107,25 @@ async function handleDelete(row: FileEntity): Promise<void> {
   }
 }
 
+let unsubscribe: (() => void) | undefined
+
 onMounted(() => {
   if (!isAcademic) {
     void loadFiles()
+    unsubscribe = eventsStore.subscribe((e) => {
+      if (
+        e.type === 'file.changed' &&
+        e.spaceType === 'CABINET' &&
+        e.targetId === auth.cabinetId &&
+        e.actorId !== auth.user?.id
+      ) {
+        void loadFiles()
+      }
+    })
   }
 })
+
+onUnmounted(() => unsubscribe?.())
 </script>
 
 <template>
@@ -137,6 +154,7 @@ onMounted(() => {
             <span>选择文件</span>
           </el-button>
         </el-upload>
+        <el-button :icon="Refresh" circle :loading="loading" @click="loadFiles" />
       </div>
     </div>
 

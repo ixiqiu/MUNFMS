@@ -17,14 +17,17 @@
 -->
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { UploadFile, UploadInstance } from 'element-plus'
+import { Refresh } from '@element-plus/icons-vue'
 import { filesApi } from '../api'
 import { useAuthStore } from '../stores/auth'
+import { useEventsStore } from '../stores/events'
 import type { FileEntity } from '../types'
 
 const auth = useAuthStore()
+const eventsStore = useEventsStore()
 
 const loading = ref(false)
 const uploading = ref(false)
@@ -109,7 +112,18 @@ async function handleDelete(row: FileEntity) {
   }
 }
 
-onMounted(loadFiles)
+let unsubscribe: (() => void) | undefined
+
+onMounted(() => {
+  void loadFiles()
+  unsubscribe = eventsStore.subscribe((e) => {
+    if (e.type === 'file.changed' && e.spaceType === 'PUBLIC' && e.actorId !== auth.user?.id) {
+      void loadFiles()
+    }
+  })
+})
+
+onUnmounted(() => unsubscribe?.())
 </script>
 
 <template>
@@ -119,19 +133,22 @@ onMounted(loadFiles)
         <div class="title">公共空间</div>
         <div class="subtitle">官方发布区 · 全员可读</div>
       </div>
-      <el-upload
-        v-if="auth.isAcademic"
-        ref="uploadRef"
-        :show-file-list="false"
-        :auto-upload="false"
-        :on-change="handleFileChange"
-        :disabled="uploading"
-      >
-        <el-button type="primary" :loading="uploading" :disabled="uploading">
-          <el-icon><Upload /></el-icon>
-          <span class="upload-text">上传文件</span>
-        </el-button>
-      </el-upload>
+      <div class="header-actions">
+        <el-button :icon="Refresh" circle :loading="loading" @click="loadFiles" />
+        <el-upload
+          v-if="auth.isAcademic"
+          ref="uploadRef"
+          :show-file-list="false"
+          :auto-upload="false"
+          :on-change="handleFileChange"
+          :disabled="uploading"
+        >
+          <el-button type="primary" :loading="uploading" :disabled="uploading">
+            <el-icon><Upload /></el-icon>
+            <span class="upload-text">上传文件</span>
+          </el-button>
+        </el-upload>
+      </div>
     </div>
 
     <el-table v-loading="loading" :data="files" style="width: 100%">
@@ -172,6 +189,12 @@ onMounted(loadFiles)
 </template>
 
 <style scoped>
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .upload-text {
   margin-left: 6px;
 }

@@ -17,13 +17,15 @@
 -->
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useEventsStore } from '../stores/events'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const eventsStore = useEventsStore()
 
 const spaceTitle = computed(() => {
   const map: Record<string, { title: string; subtitle: string }> = {
@@ -42,6 +44,16 @@ const roleLabel = computed(() => {
   if (auth.user?.role === 'ADMIN') return '系统管理员'
   return auth.isAcademic ? '学术组' : '代表'
 })
+
+const showFileListBanner = computed(
+  () =>
+    eventsStore.mode === 'polling' &&
+    !eventsStore.bannerDismissed &&
+    ['cabinet', 'public', 'conference'].includes(route.name as string),
+)
+
+onMounted(() => eventsStore.init())
+onUnmounted(() => eventsStore.destroy())
 
 function logout() {
   auth.logout()
@@ -117,6 +129,15 @@ function logout() {
       </el-header>
 
       <el-main class="main">
+        <el-alert
+          v-if="showFileListBanner"
+          type="warning"
+          show-icon
+          :closable="true"
+          class="sse-banner"
+          title="受限于网络环境，无法自动更新文件列表，请定期手动刷新"
+          @close="eventsStore.dismissBanner()"
+        />
         <router-view />
       </el-main>
     </el-container>
@@ -209,5 +230,9 @@ function logout() {
 .main {
   padding: 20px;
   overflow-y: auto;
+}
+
+.sse-banner {
+  margin-bottom: 12px;
 }
 </style>

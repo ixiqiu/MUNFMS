@@ -17,15 +17,17 @@
 -->
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { UploadFile, UploadInstance } from 'element-plus'
-import { Delete, Download, Promotion, UploadFilled } from '@element-plus/icons-vue'
+import { Delete, Download, Promotion, Refresh, UploadFilled } from '@element-plus/icons-vue'
 import { filesApi } from '../api'
 import { useAuthStore } from '../stores/auth'
+import { useEventsStore } from '../stores/events'
 import type { FileEntity } from '../types'
 
 const auth = useAuthStore()
+const eventsStore = useEventsStore()
 
 const activeTab = ref<'my' | 'all'>('my')
 const files = ref<FileEntity[]>([])
@@ -161,9 +163,23 @@ async function handleDelete(row: FileEntity) {
   }
 }
 
+let unsubscribe: (() => void) | undefined
+
 onMounted(() => {
   void loadFiles()
+  unsubscribe = eventsStore.subscribe((e) => {
+    if (
+      e.type === 'file.changed' &&
+      e.spaceType === 'CONFERENCE' &&
+      e.actorId !== auth.user?.id &&
+      (auth.isAcademic || activeTab.value === 'all')
+    ) {
+      void loadFiles()
+    }
+  })
 })
+
+onUnmounted(() => unsubscribe?.())
 </script>
 
 <template>
@@ -173,15 +189,18 @@ onMounted(() => {
         <div class="title">会议空间</div>
         <div class="subtitle">提交会议稿件，经学术团队审核后可发布至公共空间</div>
       </div>
-      <el-upload
-        ref="uploadRef"
-        :auto-upload="false"
-        :show-file-list="false"
-        :on-change="handleFileChange"
-        :disabled="uploading"
-      >
-        <el-button type="primary" :icon="UploadFilled" :loading="uploading">提交文件</el-button>
-      </el-upload>
+      <div class="header-actions">
+        <el-upload
+          ref="uploadRef"
+          :auto-upload="false"
+          :show-file-list="false"
+          :on-change="handleFileChange"
+          :disabled="uploading"
+        >
+          <el-button type="primary" :icon="UploadFilled" :loading="uploading">提交文件</el-button>
+        </el-upload>
+        <el-button :icon="Refresh" circle :loading="loading" @click="loadFiles" />
+      </div>
     </div>
 
     <el-alert
@@ -243,6 +262,12 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .delegate-hint {
   margin-bottom: 12px;
 }

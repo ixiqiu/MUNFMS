@@ -22,10 +22,13 @@ import { ElMessage } from 'element-plus'
 import { Edit, Plus, Upload } from '@element-plus/icons-vue'
 import { cabinetsApi, sessionsApi } from '../api'
 import { useAuthStore } from '../stores/auth'
+import { useEventsStore, type SseMode } from '../stores/events'
 import type { Cabinet, CabinetType, Message, Session } from '../types'
 
 const auth = useAuthStore()
-const myCabinetId = computed(() => auth.user?.cabinetId ?? '')
+const eventsStore = useEventsStore()
+const myCabinetId = computed(() => auth.cabinetId)
+const myUserId = computed(() => auth.user?.id ?? '')
 
 // ---------- 会话列表 ----------
 const sessions = ref<Session[]>([])
@@ -82,6 +85,18 @@ function scrollToBottom(behavior: ScrollBehavior = 'auto') {
 let sessionTimer: number | undefined
 let messageTimer: number | undefined
 
+function startSessionTimer() {
+  if (sessionTimer !== undefined) return
+  sessionTimer = window.setInterval(() => refreshSessions(), 3000)
+}
+
+function stopSessionTimer() {
+  if (sessionTimer !== undefined) {
+    window.clearInterval(sessionTimer)
+    sessionTimer = undefined
+  }
+}
+
 function startMessageTimer() {
   if (messageTimer !== undefined) return
   messageTimer = window.setInterval(() => {
@@ -100,20 +115,45 @@ watch(currentSessionId, (id) => {
   if (id) {
     messages.value = []
     loadMessages(id, 'auto')
-    startMessageTimer()
+    if (eventsStore.mode === 'polling') startMessageTimer()
   } else {
     stopMessageTimer()
     messages.value = []
   }
 })
 
+// SSE 连接断开时回退轮询，恢复后自动切回 SSE
+function applyMode(mode: SseMode) {
+  if (mode === 'polling') {
+    startSessionTimer()
+    if (currentSessionId.value) startMessageTimer()
+  } else {
+    stopSessionTimer()
+    stopMessageTimer()
+  }
+}
+
+watch(() => eventsStore.mode, applyMode, { immediate: true })
+
+let unsubscribe: (() => void) | undefined
+
 onMounted(() => {
   refreshSessions()
-  sessionTimer = window.setInterval(() => refreshSessions(), 3000)
+  unsubscribe = eventsStore.subscribe((e) => {
+    if (e.type === 'message.new') {
+      refreshSessions()
+      if (e.sessionId && e.sessionId === currentSessionId.value && e.actorId !== myUserId.value) {
+        loadMessages(e.sessionId, 'smooth')
+      }
+    } else if (e.type === 'session.changed') {
+      refreshSessions()
+    }
+  })
 })
 
 onUnmounted(() => {
-  if (sessionTimer !== undefined) window.clearInterval(sessionTimer)
+  unsubscribe?.()
+  stopSessionTimer()
   stopMessageTimer()
 })
 
@@ -412,7 +452,11 @@ function isOwn(message: Message): boolean {
             <el-button type="primary" :loading="sending" :icon="Upload" @click="triggerFileSelect">
               发送文件
             </el-button>
-            <span class="toolbar-hint">支持发送任意文件，群成员可下载；消息每 3 秒自动刷新</span>
+            <span class="toolbar-hint">
+              支持发送任意文件，群成员可下载；{{
+                eventsStore.mode === 'polling' ? '实时连接已断开，消息每 3 秒轮询刷新' : '消息实时更新'
+              }}
+            </span>
             <input ref="fileInput" type="file" class="hidden-file-input" @change="onFileChange" />
           </div>
         </template>
@@ -466,7 +510,7 @@ function isOwn(message: Message): boolean {
         <el-button
           type="primary"
           :loading="creating"
-          :disabled="!canCreate || candidateCabinets.length < 2"
+          :disabled="!canCreate"
           @click="createSession"
         >
           确认创建

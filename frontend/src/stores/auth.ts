@@ -27,6 +27,8 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isLoggedIn = computed(() => !!token.value)
   const isAcademic = computed(() => user.value?.role === 'ACADEMIC')
+  // cabinetId 兼容新旧登录数据：新登录接口直接返回，旧会话回退到 cabinet 关联对象
+  const cabinetId = computed(() => user.value?.cabinetId ?? user.value?.cabinet?.id ?? '')
 
   function persist() {
     localStorage.setItem('mun_token', token.value)
@@ -47,5 +49,5 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('mun_user')
   }
 
-  return { token, user, isLoggedIn, isAcademic, login, logout }
+  return { token, user, isLoggedIn, isAcademic, cabinetId, login, logout }
 })
