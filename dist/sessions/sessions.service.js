@@ -183,6 +183,7 @@ let SessionsService = class SessionsService {
     async deleteSessionContent(sessionId) {
         const messages = await this.messageRepo.find({ where: { sessionId } });
         const messageFileIds = messages.map((m) => m.fileId).filter((id) => !!id);
+        await this.messageRepo.delete({ sessionId });
         if (messageFileIds.length > 0) {
             const files = await this.fileRepo.find({
                 where: messageFileIds.map((id) => ({ id })),
@@ -195,7 +196,6 @@ let SessionsService = class SessionsService {
             }
             await this.fileRepo.delete(messageFileIds.map((id) => ({ id })));
         }
-        await this.messageRepo.delete({ sessionId });
         await this.sessionMemberRepo.delete({ sessionId });
         await this.sessionRepo.delete({ id: sessionId });
     }

@@ -211,15 +211,15 @@ let AdminService = class AdminService {
                 removePhysical(mf.storagePath);
             }
         }
-        if (messageFileIds.size) {
-            await this.fileRepo.delete([...messageFileIds]);
-        }
-        await this.fileRepo.delete({ targetId: cabinetId });
         if (sessionIds.length > 0) {
             await this.messageRepo.delete(sessionIds.map((id) => ({ sessionId: id })));
             await this.sessionMemberRepo.delete(sessionIds.map((id) => ({ sessionId: id })));
             await this.sessionRepo.delete(sessionIds.map((id) => ({ id })));
         }
+        if (messageFileIds.size) {
+            await this.fileRepo.delete([...messageFileIds]);
+        }
+        await this.fileRepo.delete({ targetId: cabinetId });
         await this.userRepo.delete({ cabinetId });
         await this.cabinetRepo.delete(cabinetId);
         const cabinetDir = path.join(this.uploadBaseDir, 'cabinet', cabinetId);

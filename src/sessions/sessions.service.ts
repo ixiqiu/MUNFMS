@@ -201,6 +201,9 @@ export class SessionsService {
     const messages = await this.messageRepo.find({ where: { sessionId } });
     const messageFileIds = messages.map((m) => m.fileId).filter((id): id is string => !!id);
 
+    // 先删消息（messages.fileId 外键引用 files），再删文件记录
+    await this.messageRepo.delete({ sessionId });
+
     if (messageFileIds.length > 0) {
       const files = await this.fileRepo.find({
         where: messageFileIds.map((id) => ({ id })),
@@ -214,7 +217,6 @@ export class SessionsService {
       await this.fileRepo.delete(messageFileIds.map((id) => ({ id })));
     }
 
-    await this.messageRepo.delete({ sessionId });
     await this.sessionMemberRepo.delete({ sessionId });
     await this.sessionRepo.delete({ id: sessionId });
   }
