@@ -117,7 +117,7 @@ export class SessionsController {
   }
 
   /**
-   * 退出群聊（代表；剩余成员不足 2 个内阁时自动解散）
+   * 退出群聊（代表；仅移除成员关系，群聊保留由学术组解散）
    */
   @Delete(':id/members/me')
   async leaveSession(

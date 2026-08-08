@@ -176,21 +176,14 @@ export class SessionsService {
   }
 
   /**
-   * 代表退出群聊：移除自己的成员关系；
-   * 若剩余成员不足 2 个内阁（群聊失去意义），自动解散整个群聊
+   * 代表退出群聊：仅移除自己的成员关系；
+   * 群聊及其中文件保留，由学术组审议后决定是否解散
    */
   async leaveSession(sessionId: string, cabinetId: string): Promise<void> {
     if (!(await this.isMember(sessionId, cabinetId))) {
       throw new ForbiddenException('你不在该群聊中');
     }
-    const remaining = await this.sessionMemberRepo.find({
-      where: { sessionId },
-    });
-    if (remaining.length <= 2) {
-      await this.deleteSessionContent(sessionId);
-    } else {
-      await this.sessionMemberRepo.delete({ sessionId, cabinetId });
-    }
+    await this.sessionMemberRepo.delete({ sessionId, cabinetId });
     this.eventsService.emit({ type: 'session.changed', ts: Date.now() });
   }
 

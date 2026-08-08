@@ -169,15 +169,7 @@ let SessionsService = class SessionsService {
         if (!(await this.isMember(sessionId, cabinetId))) {
             throw new common_1.ForbiddenException('你不在该群聊中');
         }
-        const remaining = await this.sessionMemberRepo.find({
-            where: { sessionId },
-        });
-        if (remaining.length <= 2) {
-            await this.deleteSessionContent(sessionId);
-        }
-        else {
-            await this.sessionMemberRepo.delete({ sessionId, cabinetId });
-        }
+        await this.sessionMemberRepo.delete({ sessionId, cabinetId });
         this.eventsService.emit({ type: 'session.changed', ts: Date.now() });
     }
     async deleteSessionContent(sessionId) {

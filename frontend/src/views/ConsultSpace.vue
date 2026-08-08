@@ -274,7 +274,7 @@ async function leaveCurrentSession() {
   if (!session || auth.isAcademic) return
   try {
     await ElMessageBox.confirm(
-      `退出后将不再看到「${groupName(session)}」的群聊与消息。确定退出吗？`,
+      `退出后你将不再看到「${groupName(session)}」的群聊与消息，群聊及其中文件将保留给学术组审议。确定退出吗？`,
       '退出群聊',
       { type: 'warning', confirmButtonText: '确认退出', cancelButtonText: '取消' },
     )
