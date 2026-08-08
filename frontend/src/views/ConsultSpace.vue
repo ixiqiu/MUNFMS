@@ -248,7 +248,7 @@ const closingSession = ref(false)
 
 async function dissolveCurrentSession() {
   const session = currentSession.value
-  if (!session || !isManager) return
+  if (!session || !isManager.value) return
   try {
     await ElMessageBox.confirm(
       `解散后将删除「${groupName(session)}」的全部消息与文件，且无法恢复。确定解散吗？`,
@@ -273,7 +273,7 @@ async function dissolveCurrentSession() {
 
 async function leaveCurrentSession() {
   const session = currentSession.value
-  if (!session || isManager) return
+  if (!session || isManager.value) return
   try {
     await ElMessageBox.confirm(
       `退出后你将不再看到「${groupName(session)}」的群聊与消息，群聊及其中文件将保留给学术组审议。确定退出吗？`,
