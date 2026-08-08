@@ -59,6 +59,15 @@ export declare class SessionsController {
     }): Promise<{
         message: import("../entities/message.entity").Message;
     }>;
+    copyFromCabinet(id: string, body: {
+        fileId: string;
+    }, user: {
+        id: string;
+        cabinetId: string;
+        role: UserRole;
+    }): Promise<{
+        message: import("../entities/message.entity").Message;
+    }>;
     downloadFile(messageId: string, user: {
         id: string;
         cabinetId: string;

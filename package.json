@@ -1,6 +1,6 @@
 {
   "name": "mun-file-system",
-  "version": "1.0.0",
+  "version": "0.3.0",
   "description": "常中模联文件管理系统",
   "main": "dist/main.js",
   "scripts": {

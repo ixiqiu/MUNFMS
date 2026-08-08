@@ -17,7 +17,7 @@
 -->
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useEventsStore } from '../stores/events'
@@ -26,6 +26,20 @@ const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const eventsStore = useEventsStore()
+
+const isMobile = ref(false)
+const drawerVisible = ref(false)
+
+function updateIsMobile() {
+  isMobile.value = window.innerWidth < 768
+}
+
+watch(
+  () => route.name,
+  () => {
+    drawerVisible.value = false
+  },
+)
 
 const spaceTitle = computed(() => {
   const map: Record<string, { title: string; subtitle: string }> = {
@@ -52,8 +66,15 @@ const showFileListBanner = computed(
     ['cabinet', 'public', 'conference'].includes(route.name as string),
 )
 
-onMounted(() => eventsStore.init())
-onUnmounted(() => eventsStore.destroy())
+onMounted(() => {
+  updateIsMobile()
+  window.addEventListener('resize', updateIsMobile)
+  eventsStore.init()
+})
+onUnmounted(() => {
+  window.removeEventListener('resize', updateIsMobile)
+  eventsStore.destroy()
+})
 
 function logout() {
   auth.logout()
@@ -106,6 +127,15 @@ function logout() {
 
     <el-container>
       <el-header class="header">
+        <el-button
+          v-if="isMobile"
+          circle
+          class="menu-btn"
+          aria-label="打开菜单"
+          @click="drawerVisible = true"
+        >
+          <el-icon><Menu /></el-icon>
+        </el-button>
         <div>
           <div class="header-title">{{ spaceTitle.title }}</div>
           <div class="header-subtitle">{{ spaceTitle.subtitle }}</div>
@@ -146,6 +176,55 @@ function logout() {
       </el-main>
     </el-container>
   </el-container>
+
+  <el-drawer
+    v-model="drawerVisible"
+    direction="ltr"
+    size="240px"
+    :with-header="false"
+    class="mobile-drawer"
+  >
+    <div class="drawer-inner">
+      <div class="logo">
+        <el-icon :size="22"><Collection /></el-icon>
+        <span>模联文件管理</span>
+      </div>
+      <el-menu :default-active="route.name as string" router class="menu">
+        <template v-if="isAdmin">
+          <el-menu-item index="admin">
+            <el-icon><Setting /></el-icon>
+            <span>系统管理</span>
+          </el-menu-item>
+          <el-menu-item index="consult">
+            <el-icon><ChatDotRound /></el-icon>
+            <span>群聊管理</span>
+          </el-menu-item>
+        </template>
+        <template v-else>
+          <el-menu-item index="cabinet">
+            <el-icon><FolderOpened /></el-icon>
+            <span>内阁空间</span>
+          </el-menu-item>
+          <el-menu-item index="public">
+            <el-icon><Files /></el-icon>
+            <span>公共空间</span>
+          </el-menu-item>
+          <el-menu-item index="conference">
+            <el-icon><Document /></el-icon>
+            <span>会议空间</span>
+          </el-menu-item>
+          <el-menu-item index="consult">
+            <el-icon><ChatDotRound /></el-icon>
+            <span>磋商空间</span>
+          </el-menu-item>
+        </template>
+        <el-menu-item index="about">
+          <el-icon><InfoFilled /></el-icon>
+          <span>关于</span>
+        </el-menu-item>
+      </el-menu>
+    </div>
+  </el-drawer>
 </template>
 
 <style scoped>
@@ -238,5 +317,40 @@ function logout() {
 
 .sse-banner {
   margin-bottom: 12px;
+}
+
+.drawer-inner {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #001529;
+}
+
+.mobile-drawer {
+  background: #001529;
+}
+
+.mobile-drawer :deep(.el-drawer__body) {
+  padding: 0;
+}
+
+@media (max-width: 768px) {
+  .aside {
+    display: none;
+  }
+
+  .main {
+    padding: 12px;
+  }
+
+  .header {
+    padding: 0 12px;
+    justify-content: flex-start;
+    gap: 10px;
+  }
+
+  .header :deep(.el-dropdown) {
+    margin-left: auto;
+  }
 }
 </style>

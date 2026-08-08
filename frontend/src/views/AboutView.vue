@@ -194,4 +194,14 @@ This is free software, and you are welcome to redistribute it under certain cond
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+@media (max-width: 768px) {
+  .about-page {
+    padding: 0 4px;
+  }
+
+  .about-card :deep(.el-card__body) {
+    padding: 14px;
+  }
+}
 </style>

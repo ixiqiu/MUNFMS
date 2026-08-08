@@ -19,11 +19,11 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Edit, Plus, Upload } from '@element-plus/icons-vue'
-import { cabinetsApi, sessionsApi } from '../api'
+import { CopyDocument, Edit, Plus, Upload } from '@element-plus/icons-vue'
+import { cabinetsApi, filesApi, sessionsApi } from '../api'
 import { useAuthStore } from '../stores/auth'
 import { useEventsStore, type SseMode } from '../stores/events'
-import type { Cabinet, CabinetType, Message, Session } from '../types'
+import type { Cabinet, CabinetType, FileEntity, Message, Session } from '../types'
 
 const auth = useAuthStore()
 const eventsStore = useEventsStore()
@@ -36,6 +36,13 @@ const myUserId = computed(() => auth.user?.id ?? '')
 const sessions = ref<Session[]>([])
 const currentSessionId = ref<string | null>(null)
 const messageListRef = ref<HTMLElement | null>(null)
+
+// ---------- 移动端适配（<768px 时会话列表变为覆盖式抽屉） ----------
+const isMobile = ref(false)
+function updateIsMobile() {
+  isMobile.value = window.innerWidth < 768
+}
+const sessionPanelOpen = ref(false)
 
 const currentSession = computed(
   () => sessions.value.find((s) => s.id === currentSessionId.value) || null,
@@ -142,6 +149,8 @@ watch(() => eventsStore.mode, applyMode, { immediate: true })
 let unsubscribe: (() => void) | undefined
 
 onMounted(() => {
+  updateIsMobile()
+  window.addEventListener('resize', updateIsMobile)
   refreshSessions()
   unsubscribe = eventsStore.subscribe((e) => {
     if (e.type === 'message.new') {
@@ -156,6 +165,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  window.removeEventListener('resize', updateIsMobile)
   unsubscribe?.()
   stopSessionTimer()
   stopMessageTimer()
@@ -165,6 +175,7 @@ onUnmounted(() => {
 function selectSession(session: Session) {
   if (session.id === currentSessionId.value) return
   currentSessionId.value = session.id
+  if (isMobile.value) sessionPanelOpen.value = false
 }
 
 // ---------- 新建群聊 ----------
@@ -423,6 +434,41 @@ async function confirmPasteSend() {
   }
 }
 
+// ---------- 从内阁复制文件 ----------
+const cabinetFiles = ref<FileEntity[]>([])
+const cabinetFilesLoading = ref(false)
+const copyDialogVisible = ref(false)
+const copying = ref(false)
+
+async function openCopyDialog() {
+  copyDialogVisible.value = true
+  cabinetFilesLoading.value = true
+  try {
+    cabinetFiles.value = await filesApi.list('CABINET')
+  } catch {
+    // 错误已由 axios 拦截器统一提示
+  } finally {
+    cabinetFilesLoading.value = false
+  }
+}
+
+async function copyFromCabinet(file: FileEntity) {
+  const sessionId = currentSessionId.value
+  if (!sessionId) return
+  copying.value = true
+  try {
+    await sessionsApi.copyFileToSession(sessionId, file.id)
+    copyDialogVisible.value = false
+    ElMessage.success('文件已复制到群聊')
+    await loadMessages(sessionId, 'smooth')
+    await refreshSessions()
+  } catch {
+    // 错误已由 axios 拦截器统一提示
+  } finally {
+    copying.value = false
+  }
+}
+
 // ---------- 图片内联预览 ----------
 const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp']
 const imageUrlMap = ref<Record<string, string>>({})
@@ -523,8 +569,14 @@ function senderLabel(m: Message): string {
 <template>
   <div class="page-card consult-page">
     <div class="consult-layout">
+      <!-- 移动端：点击遮罩（右侧空白）关闭会话列表 -->
+      <div
+        v-if="isMobile && sessionPanelOpen"
+        class="session-mask"
+        @click="sessionPanelOpen = false"
+      />
       <!-- 左侧：群聊列表 -->
-      <div class="session-panel">
+      <div class="session-panel" :class="{ open: sessionPanelOpen }">
         <div class="session-panel-header">
           <span class="session-panel-title">磋商群聊</span>
           <el-button
@@ -575,6 +627,14 @@ function senderLabel(m: Message): string {
       <div class="chat-panel">
         <template v-if="currentSession">
           <div class="chat-header">
+            <el-button
+              v-if="isMobile"
+              class="session-toggle-btn"
+              circle
+              @click="sessionPanelOpen = true"
+            >
+              <el-icon><Menu /></el-icon>
+            </el-button>
             <div class="chat-target">
               <span class="chat-target-name" :title="groupName(currentSession)">
                 {{ groupName(currentSession) }}
@@ -712,6 +772,16 @@ function senderLabel(m: Message): string {
               >
                 发送文件
               </el-button>
+              <el-button
+                v-if="!isManager"
+                plain
+                :icon="CopyDocument"
+                :loading="copying"
+                :disabled="!currentSessionId"
+                @click="openCopyDialog"
+              >
+                从内阁复制
+              </el-button>
               <span class="toolbar-hint">
                 <span>支持粘贴图片/文件直接上传</span>
                 <span class="toolbar-hint-sep">·</span>
@@ -727,6 +797,9 @@ function senderLabel(m: Message): string {
         </template>
 
         <div v-else class="chat-placeholder">
+          <div v-if="isMobile" class="placeholder-actions">
+            <el-button type="primary" @click="sessionPanelOpen = true">选择群聊</el-button>
+          </div>
           <el-empty description="选择左侧群聊开始磋商" :image-size="120" />
         </div>
       </div>
@@ -844,6 +917,47 @@ function senderLabel(m: Message): string {
       <template #footer>
         <el-button @click="closePasteDialog">取消</el-button>
         <el-button type="primary" :loading="sendingPaste" @click="confirmPasteSend">发送</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 从内阁复制文件对话框 -->
+    <el-dialog
+      v-model="copyDialogVisible"
+      title="从内阁复制文件"
+      width="460px"
+      :close-on-click-modal="false"
+    >
+      <div v-loading="cabinetFilesLoading" class="copy-cabinet-body">
+        <template v-if="cabinetFiles.length">
+          <div
+            v-for="f in cabinetFiles"
+            :key="f.id"
+            class="copy-file-item"
+            @click="copyFromCabinet(f)"
+          >
+            <el-icon class="copy-file-icon"><Document /></el-icon>
+            <div class="copy-file-info">
+              <div class="copy-file-name">{{ f.fileName }}</div>
+              <div class="copy-file-meta">上传于 {{ formatTime(f.createdAt) }}</div>
+            </div>
+            <el-button
+              type="primary"
+              size="small"
+              :loading="copying"
+              @click.stop="copyFromCabinet(f)"
+            >
+              复制
+            </el-button>
+          </div>
+        </template>
+        <el-empty
+          v-else-if="!cabinetFilesLoading"
+          description="内阁空间暂无文件，请先在内阁空间上传"
+          :image-size="80"
+        />
+      </div>
+      <template #footer>
+        <el-button @click="copyDialogVisible = false">取消</el-button>
       </template>
     </el-dialog>
   </div>
@@ -1333,5 +1447,132 @@ function senderLabel(m: Message): string {
   margin-top: 8px;
   font-size: 12px;
   color: #e6a23c;
+}
+
+/* 移动端「会话」切换按钮（仅在 isMobile 时渲染，桌面端无影响） */
+.session-toggle-btn {
+  flex-shrink: 0;
+}
+
+/* ---------- 移动端适配（<768px）：会话列表变为覆盖式抽屉 ---------- */
+@media (max-width: 768px) {
+  .consult-layout {
+    position: relative;
+  }
+
+  /* 点击右侧空白处关闭会话列表（z-index 低于面板 30） */
+  .session-mask {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 20;
+    background: rgba(0, 0, 0, 0.3);
+  }
+
+  .session-panel {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 80%;
+    max-width: 300px;
+    z-index: 30;
+    background: #fff;
+    border-right: 1px solid #e4e7ed;
+    box-shadow: 4px 0 16px rgba(0, 21, 41, 0.12);
+    transform: translateX(-105%);
+    transition: transform 0.25s ease;
+  }
+
+  .session-panel.open {
+    transform: translateX(0);
+  }
+
+  .chat-panel {
+    width: 100%;
+  }
+
+  .chat-target-name {
+    max-width: 130px;
+  }
+
+  .message-bubble {
+    max-width: 82%;
+  }
+
+  .inline-image,
+  .inline-image :deep(.el-image__inner) {
+    max-width: 100%;
+  }
+
+  .file-card {
+    max-width: 70vw;
+  }
+
+  .toolbar-hint {
+    font-size: 11px;
+  }
+
+  .chat-placeholder {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .placeholder-actions {
+    display: flex;
+    justify-content: center;
+  }
+}
+
+/* 从内阁复制文件对话框 */
+.copy-cabinet-body {
+  min-height: 120px;
+  max-height: 50vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.copy-file-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.copy-file-item:hover {
+  background: #f5f7fa;
+}
+
+.copy-file-icon {
+  font-size: 20px;
+  color: #909399;
+  flex-shrink: 0;
+}
+
+.copy-file-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.copy-file-name {
+  font-size: 14px;
+  color: #303133;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.copy-file-meta {
+  margin-top: 2px;
+  font-size: 12px;
+  color: #909399;
 }
 </style>

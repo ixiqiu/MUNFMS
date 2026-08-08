@@ -280,7 +280,7 @@ async function handleDeleteCabinet(row: Cabinet): Promise<void> {
           </el-button>
         </div>
 
-        <el-table :data="users" v-loading="usersLoading" row-key="id">
+        <el-table :data="users" v-loading="usersLoading" row-key="id" class="file-table">
           <el-table-column label="用户名" min-width="160" show-overflow-tooltip>
             <template #default="{ row }">
               {{ (row as AdminUser).name }}
@@ -335,6 +335,27 @@ async function handleDeleteCabinet(row: Cabinet): Promise<void> {
             <el-empty description="暂无账户" :image-size="80" />
           </template>
         </el-table>
+
+        <!-- 移动端：账户卡片列表 -->
+        <div class="mobile-file-list">
+          <div v-for="u in users" :key="u.id" class="mobile-file-card">
+            <div class="mobile-file-main">
+              <div class="mobile-file-info">
+                <div class="mobile-file-name">{{ u.name }}</div>
+                <div class="mobile-file-meta">
+                  <el-tag :type="roleTagType[u.role]" size="small">{{ roleLabel[u.role] }}</el-tag>
+                  <span class="meta-sep">·</span>
+                  <span>{{ u.cabinet?.name || '—' }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="mobile-file-sub">注册于 {{ formatTime(u.createdAt) }}</div>
+            <div class="mobile-file-actions">
+              <el-button link type="primary" size="small" @click="openChangePassword(u)">改密码</el-button>
+              <el-button v-if="u.role !== 'ADMIN'" link type="danger" size="small" @click="handleDeleteUser(u)">删除</el-button>
+            </div>
+          </div>
+        </div>
       </el-tab-pane>
 
       <!-- 内阁管理 -->
@@ -350,7 +371,7 @@ async function handleDeleteCabinet(row: Cabinet): Promise<void> {
           </el-button>
         </div>
 
-        <el-table :data="cabinets" v-loading="cabinetsLoading" row-key="id">
+        <el-table :data="cabinets" v-loading="cabinetsLoading" row-key="id" class="cabinet-table">
           <el-table-column label="名称" min-width="220" show-overflow-tooltip>
             <template #default="{ row }">
               {{ (row as Cabinet).name }}
@@ -383,6 +404,23 @@ async function handleDeleteCabinet(row: Cabinet): Promise<void> {
             <el-empty description="暂无内阁" :image-size="80" />
           </template>
         </el-table>
+
+        <!-- 移动端：内阁卡片列表 -->
+        <div class="mobile-cabinet-list">
+          <div v-for="c in cabinets" :key="c.id" class="mobile-file-card">
+            <div class="mobile-file-main">
+              <div class="mobile-file-info">
+                <div class="mobile-file-name">{{ c.name }}</div>
+                <div class="mobile-file-meta">
+                  <el-tag :type="cabinetTagType[c.type]" size="small">{{ cabinetTypeLabel[c.type] }}</el-tag>
+                </div>
+              </div>
+              <div class="mobile-file-actions">
+                <el-button link type="danger" size="small" @click="handleDeleteCabinet(c)">删除</el-button>
+              </div>
+            </div>
+          </div>
+        </div>
       </el-tab-pane>
     </el-tabs>
 
@@ -492,3 +530,62 @@ async function handleDeleteCabinet(row: Cabinet): Promise<void> {
     </el-dialog>
   </div>
 </template>
+
+<style scoped>
+/* ---------- 移动端卡片化列表（默认隐藏，<768px 时替换表格） ---------- */
+.mobile-file-list,
+.mobile-cabinet-list {
+  display: none;
+}
+
+.mobile-file-card {
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #ebeef5;
+  padding: 12px;
+}
+
+.mobile-file-name {
+  font-size: 14px;
+  color: #303133;
+  word-break: break-all;
+}
+
+.mobile-file-meta {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mobile-file-sub {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 6px;
+}
+
+.mobile-file-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid #f0f2f5;
+  margin-top: 10px;
+  padding-top: 8px;
+}
+
+@media (max-width: 768px) {
+  .file-table,
+  .cabinet-table {
+    display: none;
+  }
+
+  .mobile-file-list,
+  .mobile-cabinet-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+}
+</style>

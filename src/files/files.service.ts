@@ -21,6 +21,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FileEntity, SpaceType } from '../entities/file.entity';
 import { User, UserRole } from '../entities/user.entity';
+import { Message } from '../entities/message.entity';
 import { EventsService } from '../events/events.service';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -35,6 +36,8 @@ export class FilesService {
     private fileRepo: Repository<FileEntity>,
     @InjectRepository(User)
     private userRepo: Repository<User>,
+    @InjectRepository(Message)
+    private messageRepo: Repository<Message>,
     private eventsService: EventsService,
   ) {
     // 确保上传目录存在
@@ -210,6 +213,11 @@ export class FilesService {
       throw new NotFoundException('文件不存在');
     }
 
+    // 磋商附件属于会话消息，只能通过会话下载接口访问，禁止经文件空间接口访问
+    if (file.spaceType === SpaceType.CONSULT) {
+      throw new ForbiddenException('磋商文件请通过会话消息下载');
+    }
+
     // 权限校验
     if (file.spaceType === SpaceType.CABINET && file.targetId !== user.cabinetId) {
       throw new ForbiddenException('无权访问该内阁文件');
@@ -328,6 +336,15 @@ export class FilesService {
     if (fs.existsSync(fullPath)) {
       await fs.promises.unlink(fullPath);
     }
+
+    // 删除数据库记录前，先解除磋商消息对该文件的引用
+    // （messages.fileId 外键引用 files，置空后消息保留、文件记录可正常删除）
+    await this.messageRepo
+      .createQueryBuilder()
+      .update(Message)
+      .set({ fileId: null })
+      .where('fileId = :fileId', { fileId })
+      .execute();
 
     // 删除数据库记录
     await this.fileRepo.delete(fileId);

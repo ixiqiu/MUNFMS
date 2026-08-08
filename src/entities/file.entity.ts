@@ -22,6 +22,7 @@ export enum SpaceType {
   CABINET = 'CABINET',
   PUBLIC = 'PUBLIC',
   CONFERENCE = 'CONFERENCE',
+  CONSULT = 'CONSULT',
 }
 
 @Entity('files')

@@ -141,4 +141,11 @@ async function submit() {
   color: #409eff;
   text-decoration: none;
 }
+
+@media (max-width: 768px) {
+  .login-card {
+    width: 92%;
+    padding: 32px 20px;
+  }
+}
 </style>
