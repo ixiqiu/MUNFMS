@@ -337,21 +337,46 @@ export class SessionsService {
       academicUsers.map((u) => [u.id, u.cabinet?.name]),
     );
 
-    return messages.map((m) => ({
-      ...m,
-      senderName:
-        m.senderType === MessageSenderType.ACADEMIC
-          ? academicNameMap.get(m.file?.uploaderId) || '学团'
-          : senderNameMap.get(m.senderCabinetId) || '未知',
-    }));
+    // 发送人信息富化：收集全部发送人用户 ID（ACADEMIC 消息 senderUserId 一定存在；
+    // 老数据兜底到 file.uploaderId），一次查询建 Map，避免 N+1
+    const uploaderIds = messages
+      .map((m) => m.senderUserId ?? m.file?.uploaderId)
+      .filter((id): id is string => !!id);
+    const uploaderUsers = uploaderIds.length
+      ? await this.userRepo.find({
+          where: [...new Set(uploaderIds)].map((id) => ({ id })),
+          relations: ['cabinet'],
+        })
+      : [];
+    const uploaderNameMap = new Map(uploaderUsers.map((u) => [u.id, u.name]));
+    const uploaderCabinetNameMap = new Map(
+      uploaderUsers.map((u) => [u.id, u.cabinet?.name ?? null]),
+    );
+
+    return messages.map((m) => {
+      const uploaderId = m.senderUserId ?? m.file?.uploaderId ?? null;
+      return {
+        ...m,
+        senderName:
+          m.senderType === MessageSenderType.ACADEMIC
+            ? academicNameMap.get(m.file?.uploaderId) || '学团'
+            : senderNameMap.get(m.senderCabinetId) || '未知',
+        uploaderName: uploaderId ? uploaderNameMap.get(uploaderId) ?? null : null,
+        uploaderCabinetName: uploaderId
+          ? uploaderCabinetNameMap.get(uploaderId) ?? null
+          : null,
+      };
+    });
   }
 
   async sendMessage(
     sessionId: string,
-    file: Express.Multer.File,
+    file: Express.Multer.File | null,
+    content: string | null,
     senderCabinetId: string | null,
     senderType: MessageSenderType,
     uploaderId: string,
+    senderUserId: string,
     role: UserRole,
   ): Promise<Message> {
     const session = await this.sessionRepo.findOne({ where: { id: sessionId } });
@@ -370,28 +395,36 @@ export class SessionsService {
       fs.mkdirSync(storageDir, { recursive: true });
     }
 
-    const uniqueFileName = `${uuidv4()}_${file.originalname}`;
-    const storagePath = path.join(storageDir, uniqueFileName);
-    const relativePath = path.join('consult', uniqueFileName);
+    let storagePath: string | null = null;
 
     try {
-      await fs.promises.rename(file.path, storagePath);
+      let fileId: string | null = null;
+      if (file) {
+        const uniqueFileName = `${uuidv4()}_${file.originalname}`;
+        storagePath = path.join(storageDir, uniqueFileName);
+        const relativePath = path.join('consult', uniqueFileName);
 
-      const fileEntity = this.fileRepo.create({
-        fileName: file.originalname,
-        storagePath: relativePath,
-        spaceType: SpaceType.CABINET,
-        uploaderId,
-        targetId: senderType === MessageSenderType.ACADEMIC ? null : senderCabinetId,
-        isFromConference: false,
-      });
-      const savedFile = await this.fileRepo.save(fileEntity);
+        await fs.promises.rename(file.path, storagePath);
+
+        const fileEntity = this.fileRepo.create({
+          fileName: file.originalname,
+          storagePath: relativePath,
+          spaceType: SpaceType.CABINET,
+          uploaderId,
+          targetId: senderType === MessageSenderType.ACADEMIC ? null : senderCabinetId,
+          isFromConference: false,
+        });
+        const savedFile = await this.fileRepo.save(fileEntity);
+        fileId = savedFile.id;
+      }
 
       const message = this.messageRepo.create({
         sessionId,
         senderCabinetId,
         senderType,
-        fileId: savedFile.id,
+        fileId,
+        content,
+        senderUserId,
         isRead: false,
       });
       const savedMessage = await this.messageRepo.save(message);
@@ -405,7 +438,7 @@ export class SessionsService {
         actorId: uploaderId,
         ts: Date.now(),
       });
-      if (senderType === MessageSenderType.CABINET) {
+      if (file && senderType === MessageSenderType.CABINET) {
         this.eventsService.emit({
           type: 'file.changed',
           spaceType: SpaceType.CABINET,
@@ -417,7 +450,7 @@ export class SessionsService {
 
       return savedMessage;
     } catch (error) {
-      if (fs.existsSync(storagePath)) {
+      if (storagePath && fs.existsSync(storagePath)) {
         await fs.promises.unlink(storagePath);
       }
       throw error;
@@ -428,7 +461,7 @@ export class SessionsService {
     messageId: string,
     cabinetId: string,
     role: UserRole,
-  ): Promise<{ readStream: fs.ReadStream; fileName: string }> {
+  ): Promise<{ readStream: fs.ReadStream; fileName: string; mimeType: string }> {
     const message = await this.messageRepo.findOne({
       where: { id: messageId },
       relations: ['file'],
@@ -445,12 +478,38 @@ export class SessionsService {
       throw new ForbiddenException('无权访问该文件');
     }
 
+    if (!message.file) {
+      throw new NotFoundException('消息没有附件');
+    }
+
+    const mimeTypes: Record<string, string> = {
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp',
+      '.svg': 'image/svg+xml',
+      '.bmp': 'image/bmp',
+      '.pdf': 'application/pdf',
+      '.doc': 'application/msword',
+      '.docx': 'application/msword',
+      '.xls': 'application/vnd.ms-excel',
+      '.xlsx': 'application/vnd.ms-excel',
+      '.ppt': 'application/vnd.ms-powerpoint',
+      '.pptx': 'application/vnd.ms-powerpoint',
+      '.txt': 'text/plain',
+      '.zip': 'application/zip',
+    };
+
     const fullPath = path.join(process.cwd(), 'uploads', message.file.storagePath);
     if (!fs.existsSync(fullPath)) {
       throw new NotFoundException('物理文件不存在');
     }
 
+    const ext = path.extname(message.file.fileName).toLowerCase();
+    const mimeType = mimeTypes[ext] ?? 'application/octet-stream';
+
     const readStream = fs.createReadStream(fullPath);
-    return { readStream, fileName: message.file.fileName };
+    return { readStream, fileName: message.file.fileName, mimeType };
   }
 }

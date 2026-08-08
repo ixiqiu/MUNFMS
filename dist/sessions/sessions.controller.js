@@ -67,16 +67,17 @@ let SessionsController = class SessionsController {
         const messages = await this.sessionsService.getMessages(id, user.cabinetId, user.role);
         return { messages };
     }
-    async sendMessage(id, file, user) {
-        if (!file) {
-            throw new common_1.BadRequestException('未提供文件');
+    async sendMessage(id, file, content, user) {
+        if (!file && !content?.trim()) {
+            throw new common_1.BadRequestException('请发送文件或输入文字');
         }
         const sendAsAcademic = user.role === user_entity_1.UserRole.ACADEMIC || user.role === user_entity_1.UserRole.ADMIN;
-        const message = await this.sessionsService.sendMessage(id, file, sendAsAcademic ? null : user.cabinetId, sendAsAcademic ? message_entity_1.MessageSenderType.ACADEMIC : message_entity_1.MessageSenderType.CABINET, user.id, user.role);
+        const message = await this.sessionsService.sendMessage(id, file ?? null, content?.trim() || null, sendAsAcademic ? null : user.cabinetId, sendAsAcademic ? message_entity_1.MessageSenderType.ACADEMIC : message_entity_1.MessageSenderType.CABINET, user.id, user.id, user.role);
         return { message };
     }
     async downloadFile(messageId, user, res) {
-        const { readStream, fileName } = await this.sessionsService.downloadFile(messageId, user.cabinetId, user.role);
+        const { readStream, fileName, mimeType } = await this.sessionsService.downloadFile(messageId, user.cabinetId, user.role);
+        res.setHeader('Content-Type', mimeType);
         const asciiFallback = fileName.replace(/[^\x20-\x7E]/g, '_').replace(/"/g, '');
         res.setHeader('Content-Disposition', `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(fileName)}`);
         return new common_1.StreamableFile(readStream);
@@ -136,9 +137,10 @@ __decorate([
     (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file', uploadOptions)),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.UploadedFile)()),
-    __param(2, (0, current_user_decorator_1.CurrentUser)()),
+    __param(2, (0, common_1.Body)('content')),
+    __param(3, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:paramtypes", [String, Object, String, Object]),
     __metadata("design:returntype", Promise)
 ], SessionsController.prototype, "sendMessage", null);
 __decorate([

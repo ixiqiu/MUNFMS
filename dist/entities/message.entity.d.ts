@@ -10,8 +10,10 @@ export declare class Message {
     sessionId: string;
     senderCabinetId: string | null;
     senderType: MessageSenderType;
-    file: FileEntity;
-    fileId: string;
+    file: FileEntity | null;
+    fileId: string | null;
+    content: string | null;
+    senderUserId: string | null;
     isRead: boolean;
     createdAt: Date;
 }

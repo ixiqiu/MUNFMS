@@ -75,10 +75,14 @@ export interface Message {
   senderCabinetId: string | null
   senderType: 'CABINET' | 'ACADEMIC'
   senderName?: string | null
-  fileId: string
+  senderUserId?: string | null
+  uploaderName?: string | null
+  uploaderCabinetName?: string | null
+  content?: string | null
+  fileId: string | null
   isRead: boolean
   createdAt: string
-  file?: FileEntity
+  file?: FileEntity | null
 }
 
 export type SseEventType = 'file.changed' | 'session.changed' | 'message.new' | 'cabinet.deleted'

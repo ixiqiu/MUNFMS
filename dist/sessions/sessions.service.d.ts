@@ -29,9 +29,10 @@ export declare class SessionsService {
     getSessions(cabinetId: string, role: UserRole): Promise<any[]>;
     private countUnread;
     getMessages(sessionId: string, cabinetId: string, role: UserRole): Promise<any[]>;
-    sendMessage(sessionId: string, file: Express.Multer.File, senderCabinetId: string | null, senderType: MessageSenderType, uploaderId: string, role: UserRole): Promise<Message>;
+    sendMessage(sessionId: string, file: Express.Multer.File | null, content: string | null, senderCabinetId: string | null, senderType: MessageSenderType, uploaderId: string, senderUserId: string, role: UserRole): Promise<Message>;
     downloadFile(messageId: string, cabinetId: string, role: UserRole): Promise<{
         readStream: fs.ReadStream;
         fileName: string;
+        mimeType: string;
     }>;
 }

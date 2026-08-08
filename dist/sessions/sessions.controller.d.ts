@@ -52,7 +52,7 @@ export declare class SessionsController {
     }): Promise<{
         messages: any[];
     }>;
-    sendMessage(id: string, file: Express.Multer.File, user: {
+    sendMessage(id: string, file: Express.Multer.File | undefined, content: string | undefined, user: {
         id: string;
         cabinetId: string;
         role: UserRole;
