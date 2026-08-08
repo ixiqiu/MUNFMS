@@ -409,9 +409,9 @@ export class SessionsService {
         const fileEntity = this.fileRepo.create({
           fileName: file.originalname,
           storagePath: relativePath,
-          spaceType: SpaceType.CABINET,
+          spaceType: SpaceType.CONSULT,
           uploaderId,
-          targetId: senderType === MessageSenderType.ACADEMIC ? null : senderCabinetId,
+          targetId: null,
           isFromConference: false,
         });
         const savedFile = await this.fileRepo.save(fileEntity);
@@ -438,20 +438,95 @@ export class SessionsService {
         actorId: uploaderId,
         ts: Date.now(),
       });
-      if (file && senderType === MessageSenderType.CABINET) {
-        this.eventsService.emit({
-          type: 'file.changed',
-          spaceType: SpaceType.CABINET,
-          targetId: senderCabinetId,
-          actorId: uploaderId,
-          ts: Date.now(),
-        });
-      }
 
       return savedMessage;
     } catch (error) {
       if (storagePath && fs.existsSync(storagePath)) {
         await fs.promises.unlink(storagePath);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * 从内阁复制文件到群聊（物理复制，等效下载再上传，独立文件记录）
+   */
+  async copyFromCabinet(
+    sessionId: string,
+    fileId: string,
+    user: { id: string; cabinetId: string; role: UserRole },
+  ): Promise<Message> {
+    if (user.role !== UserRole.DELEGATE || !user.cabinetId) {
+      throw new BadRequestException('只有代表可以复制内阁文件');
+    }
+
+    const session = await this.sessionRepo.findOne({ where: { id: sessionId } });
+    if (!session) {
+      throw new NotFoundException('群聊不存在');
+    }
+    if (!(await this.isMember(sessionId, user.cabinetId))) {
+      throw new ForbiddenException('无权向该群聊发送消息');
+    }
+
+    const file = await this.fileRepo.findOne({ where: { id: fileId } });
+    if (!file) {
+      throw new NotFoundException('文件不存在');
+    }
+    if (file.spaceType !== SpaceType.CABINET || file.targetId !== user.cabinetId) {
+      throw new ForbiddenException('只能复制本内阁的文件');
+    }
+
+    const srcPath = path.join(process.cwd(), 'uploads', file.storagePath);
+    if (!fs.existsSync(srcPath)) {
+      throw new NotFoundException('原文件不存在');
+    }
+
+    const destDir = path.join(process.cwd(), 'uploads', 'consult');
+    if (!fs.existsSync(destDir)) {
+      fs.mkdirSync(destDir, { recursive: true });
+    }
+
+    const uniqueFileName = `${uuidv4()}_${file.fileName}`;
+    const destPath = path.join(destDir, uniqueFileName);
+
+    try {
+      await fs.promises.copyFile(srcPath, destPath);
+
+      const fileEntity = this.fileRepo.create({
+        fileName: file.fileName,
+        storagePath: path.join('consult', uniqueFileName),
+        spaceType: SpaceType.CONSULT,
+        uploaderId: user.id,
+        targetId: null,
+        isFromConference: false,
+      });
+      const savedFile = await this.fileRepo.save(fileEntity);
+
+      const message = this.messageRepo.create({
+        sessionId,
+        senderCabinetId: user.cabinetId,
+        senderType: MessageSenderType.CABINET,
+        fileId: savedFile.id,
+        content: null,
+        senderUserId: user.id,
+        isRead: false,
+      });
+      const savedMessage = await this.messageRepo.save(message);
+
+      session.lastMessageTime = new Date();
+      await this.sessionRepo.save(session);
+
+      this.eventsService.emit({
+        type: 'message.new',
+        sessionId,
+        actorId: user.id,
+        ts: Date.now(),
+      });
+
+      return savedMessage;
+    } catch (error) {
+      if (fs.existsSync(destPath)) {
+        await fs.promises.unlink(destPath);
       }
       throw error;
     }

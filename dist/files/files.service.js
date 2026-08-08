@@ -51,14 +51,16 @@ const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const file_entity_1 = require("../entities/file.entity");
 const user_entity_1 = require("../entities/user.entity");
+const message_entity_1 = require("../entities/message.entity");
 const events_service_1 = require("../events/events.service");
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const uuid_1 = require("uuid");
 let FilesService = class FilesService {
-    constructor(fileRepo, userRepo, eventsService) {
+    constructor(fileRepo, userRepo, messageRepo, eventsService) {
         this.fileRepo = fileRepo;
         this.userRepo = userRepo;
+        this.messageRepo = messageRepo;
         this.eventsService = eventsService;
         this.uploadBaseDir = path.join(process.cwd(), 'uploads');
         this.ensureUploadDirs();
@@ -183,6 +185,9 @@ let FilesService = class FilesService {
         if (!file) {
             throw new common_1.NotFoundException('文件不存在');
         }
+        if (file.spaceType === file_entity_1.SpaceType.CONSULT) {
+            throw new common_1.ForbiddenException('磋商文件请通过会话消息下载');
+        }
         if (file.spaceType === file_entity_1.SpaceType.CABINET && file.targetId !== user.cabinetId) {
             throw new common_1.ForbiddenException('无权访问该内阁文件');
         }
@@ -264,6 +269,12 @@ let FilesService = class FilesService {
         if (fs.existsSync(fullPath)) {
             await fs.promises.unlink(fullPath);
         }
+        await this.messageRepo
+            .createQueryBuilder()
+            .update(message_entity_1.Message)
+            .set({ fileId: null })
+            .where('fileId = :fileId', { fileId })
+            .execute();
         await this.fileRepo.delete(fileId);
         this.eventsService.emit({
             type: 'file.changed',
@@ -279,7 +290,9 @@ exports.FilesService = FilesService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(file_entity_1.FileEntity)),
     __param(1, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
+    __param(2, (0, typeorm_1.InjectRepository)(message_entity_1.Message)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository,
         events_service_1.EventsService])
 ], FilesService);

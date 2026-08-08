@@ -212,4 +212,27 @@ onMounted(loadCabinets)
   color: #409eff;
   text-decoration: none;
 }
+
+@media (max-width: 768px) {
+  .register-card {
+    width: 92%;
+    padding: 28px 18px;
+  }
+
+  /* 身份单选按钮组两个长标签在窄屏会溢出，改为等宽撑满 */
+  .register-card :deep(.el-radio-group) {
+    display: flex;
+    width: 100%;
+  }
+
+  .register-card :deep(.el-radio-button) {
+    flex: 1;
+  }
+
+  .register-card :deep(.el-radio-button__inner) {
+    width: 100%;
+    font-size: 12px;
+    padding: 8px 6px;
+  }
+}
 </style>

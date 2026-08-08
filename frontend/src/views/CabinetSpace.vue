@@ -191,6 +191,22 @@ onUnmounted(() => unsubscribe?.())
         <el-empty description="暂无文件，上传第一个文件吧" :image-size="80" />
       </template>
     </el-table>
+
+    <div class="mobile-file-list">
+      <div v-for="f in files" :key="f.id" class="mobile-file-card">
+        <div class="mobile-file-main">
+          <el-icon class="mobile-file-icon"><Document /></el-icon>
+          <div class="mobile-file-info">
+            <div class="mobile-file-name">{{ f.fileName }}</div>
+            <div class="mobile-file-meta">上传于 {{ formatTime(f.createdAt) }}</div>
+          </div>
+        </div>
+        <div class="mobile-file-actions">
+          <el-button link type="primary" size="small" @click="handleDownload(f)">下载</el-button>
+          <el-button link type="danger" size="small" @click="handleDelete(f)">删除</el-button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -228,5 +244,64 @@ onUnmounted(() => unsubscribe?.())
 
 .file-name-text {
   white-space: nowrap;
+}
+
+/* 移动端（<768px）：隐藏表格，展示卡片式文件列表 */
+.mobile-file-list {
+  display: none;
+}
+
+.mobile-file-card {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #ebeef5;
+  padding: 12px;
+}
+
+.mobile-file-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.mobile-file-icon {
+  color: #909399;
+  font-size: 20px;
+  margin-top: 2px;
+}
+
+.mobile-file-name {
+  font-size: 14px;
+  color: #303133;
+  word-break: break-all;
+}
+
+.mobile-file-meta {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 4px;
+}
+
+.mobile-file-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  border-top: 1px solid #f0f2f5;
+  padding-top: 8px;
+  margin-top: 10px;
+}
+
+@media (max-width: 768px) {
+  .file-table {
+    display: none;
+  }
+
+  .mobile-file-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
 }
 </style>

@@ -183,6 +183,22 @@ export class SessionsController {
   }
 
   /**
+   * 从内阁复制文件到群聊（物理复制）
+   */
+  @Post(':id/copy-file')
+  async copyFromCabinet(
+    @Param('id') id: string,
+    @Body() body: { fileId: string },
+    @CurrentUser() user: { id: string; cabinetId: string; role: UserRole },
+  ) {
+    if (!body.fileId) {
+      throw new BadRequestException('缺少 fileId');
+    }
+    const message = await this.sessionsService.copyFromCabinet(id, body.fileId, user);
+    return { message };
+  }
+
+  /**
    * 下载磋商文件
    */
   @Get('messages/:messageId/download')

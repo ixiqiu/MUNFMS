@@ -93,6 +93,11 @@ export const sessionsApi = {
       .post<{ message: Message }>(`/sessions/${sessionId}/messages`, form)
       .then((r) => r.data.message)
   },
+  copyFileToSession(sessionId: string, fileId: string) {
+    return client
+      .post<{ message: Message }>(`/sessions/${sessionId}/copy-file`, { fileId })
+      .then((r) => r.data.message)
+  },
   downloadMessage(messageId: string) {
     return client.get<Blob>(`/sessions/messages/${messageId}/download`, { responseType: 'blob' })
   },

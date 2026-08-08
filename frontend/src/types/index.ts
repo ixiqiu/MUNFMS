@@ -18,7 +18,7 @@
 
 export type UserRole = 'ADMIN' | 'DELEGATE' | 'ACADEMIC'
 export type CabinetType = 'CABINET' | 'BUREAU' | 'CRISIS'
-export type SpaceType = 'CABINET' | 'PUBLIC' | 'CONFERENCE'
+export type SpaceType = 'CABINET' | 'PUBLIC' | 'CONFERENCE' | 'CONSULT'
 
 export interface Cabinet {
   id: string

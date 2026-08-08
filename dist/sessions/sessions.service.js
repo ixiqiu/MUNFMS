@@ -336,9 +336,9 @@ let SessionsService = class SessionsService {
                 const fileEntity = this.fileRepo.create({
                     fileName: file.originalname,
                     storagePath: relativePath,
-                    spaceType: file_entity_1.SpaceType.CABINET,
+                    spaceType: file_entity_1.SpaceType.CONSULT,
                     uploaderId,
-                    targetId: senderType === message_entity_1.MessageSenderType.ACADEMIC ? null : senderCabinetId,
+                    targetId: null,
                     isFromConference: false,
                 });
                 const savedFile = await this.fileRepo.save(fileEntity);
@@ -362,20 +362,77 @@ let SessionsService = class SessionsService {
                 actorId: uploaderId,
                 ts: Date.now(),
             });
-            if (file && senderType === message_entity_1.MessageSenderType.CABINET) {
-                this.eventsService.emit({
-                    type: 'file.changed',
-                    spaceType: file_entity_1.SpaceType.CABINET,
-                    targetId: senderCabinetId,
-                    actorId: uploaderId,
-                    ts: Date.now(),
-                });
-            }
             return savedMessage;
         }
         catch (error) {
             if (storagePath && fs.existsSync(storagePath)) {
                 await fs.promises.unlink(storagePath);
+            }
+            throw error;
+        }
+    }
+    async copyFromCabinet(sessionId, fileId, user) {
+        if (user.role !== user_entity_1.UserRole.DELEGATE || !user.cabinetId) {
+            throw new common_1.BadRequestException('只有代表可以复制内阁文件');
+        }
+        const session = await this.sessionRepo.findOne({ where: { id: sessionId } });
+        if (!session) {
+            throw new common_1.NotFoundException('群聊不存在');
+        }
+        if (!(await this.isMember(sessionId, user.cabinetId))) {
+            throw new common_1.ForbiddenException('无权向该群聊发送消息');
+        }
+        const file = await this.fileRepo.findOne({ where: { id: fileId } });
+        if (!file) {
+            throw new common_1.NotFoundException('文件不存在');
+        }
+        if (file.spaceType !== file_entity_1.SpaceType.CABINET || file.targetId !== user.cabinetId) {
+            throw new common_1.ForbiddenException('只能复制本内阁的文件');
+        }
+        const srcPath = path.join(process.cwd(), 'uploads', file.storagePath);
+        if (!fs.existsSync(srcPath)) {
+            throw new common_1.NotFoundException('原文件不存在');
+        }
+        const destDir = path.join(process.cwd(), 'uploads', 'consult');
+        if (!fs.existsSync(destDir)) {
+            fs.mkdirSync(destDir, { recursive: true });
+        }
+        const uniqueFileName = `${(0, uuid_1.v4)()}_${file.fileName}`;
+        const destPath = path.join(destDir, uniqueFileName);
+        try {
+            await fs.promises.copyFile(srcPath, destPath);
+            const fileEntity = this.fileRepo.create({
+                fileName: file.fileName,
+                storagePath: path.join('consult', uniqueFileName),
+                spaceType: file_entity_1.SpaceType.CONSULT,
+                uploaderId: user.id,
+                targetId: null,
+                isFromConference: false,
+            });
+            const savedFile = await this.fileRepo.save(fileEntity);
+            const message = this.messageRepo.create({
+                sessionId,
+                senderCabinetId: user.cabinetId,
+                senderType: message_entity_1.MessageSenderType.CABINET,
+                fileId: savedFile.id,
+                content: null,
+                senderUserId: user.id,
+                isRead: false,
+            });
+            const savedMessage = await this.messageRepo.save(message);
+            session.lastMessageTime = new Date();
+            await this.sessionRepo.save(session);
+            this.eventsService.emit({
+                type: 'message.new',
+                sessionId,
+                actorId: user.id,
+                ts: Date.now(),
+            });
+            return savedMessage;
+        }
+        catch (error) {
+            if (fs.existsSync(destPath)) {
+                await fs.promises.unlink(destPath);
             }
             throw error;
         }

@@ -75,6 +75,13 @@ let SessionsController = class SessionsController {
         const message = await this.sessionsService.sendMessage(id, file ?? null, content?.trim() || null, sendAsAcademic ? null : user.cabinetId, sendAsAcademic ? message_entity_1.MessageSenderType.ACADEMIC : message_entity_1.MessageSenderType.CABINET, user.id, user.id, user.role);
         return { message };
     }
+    async copyFromCabinet(id, body, user) {
+        if (!body.fileId) {
+            throw new common_1.BadRequestException('缺少 fileId');
+        }
+        const message = await this.sessionsService.copyFromCabinet(id, body.fileId, user);
+        return { message };
+    }
     async downloadFile(messageId, user, res) {
         const { readStream, fileName, mimeType } = await this.sessionsService.downloadFile(messageId, user.cabinetId, user.role);
         res.setHeader('Content-Type', mimeType);
@@ -143,6 +150,15 @@ __decorate([
     __metadata("design:paramtypes", [String, Object, String, Object]),
     __metadata("design:returntype", Promise)
 ], SessionsController.prototype, "sendMessage", null);
+__decorate([
+    (0, common_1.Post)(':id/copy-file'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:returntype", Promise)
+], SessionsController.prototype, "copyFromCabinet", null);
 __decorate([
     (0, common_1.Get)('messages/:messageId/download'),
     __param(0, (0, common_1.Param)('messageId')),
