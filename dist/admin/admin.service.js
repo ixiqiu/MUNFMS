@@ -56,14 +56,16 @@ const user_entity_1 = require("../entities/user.entity");
 const cabinet_entity_1 = require("../entities/cabinet.entity");
 const file_entity_1 = require("../entities/file.entity");
 const session_entity_1 = require("../entities/session.entity");
+const session_member_entity_1 = require("../entities/session-member.entity");
 const message_entity_1 = require("../entities/message.entity");
 const events_service_1 = require("../events/events.service");
 let AdminService = class AdminService {
-    constructor(userRepo, cabinetRepo, fileRepo, sessionRepo, messageRepo, eventsService) {
+    constructor(userRepo, cabinetRepo, fileRepo, sessionRepo, sessionMemberRepo, messageRepo, eventsService) {
         this.userRepo = userRepo;
         this.cabinetRepo = cabinetRepo;
         this.fileRepo = fileRepo;
         this.sessionRepo = sessionRepo;
+        this.sessionMemberRepo = sessionMemberRepo;
         this.messageRepo = messageRepo;
         this.eventsService = eventsService;
         this.uploadBaseDir = path.join(process.cwd(), 'uploads');
@@ -169,11 +171,18 @@ let AdminService = class AdminService {
         if (!cabinet) {
             throw new common_1.NotFoundException('内阁不存在');
         }
-        const files = await this.fileRepo.find({ where: { targetId: cabinetId } });
-        const sessions = await this.sessionRepo.find({
+        const memberSessions = await this.sessionMemberRepo.find({
+            where: { cabinetId },
+        });
+        const legacySessions = await this.sessionRepo.find({
             where: [{ cabinetA_id: cabinetId }, { cabinetB_id: cabinetId }],
         });
-        const sessionIds = sessions.map((s) => s.id);
+        const sessionIds = [
+            ...new Set([
+                ...memberSessions.map((m) => m.sessionId),
+                ...legacySessions.map((s) => s.id),
+            ]),
+        ];
         let messages = [];
         if (sessionIds.length > 0) {
             messages = await this.messageRepo
@@ -182,32 +191,21 @@ let AdminService = class AdminService {
                 .getMany();
         }
         const messageFileIds = new Set(messages.map((m) => m.fileId));
-        const messageFiles = await this.fileRepo.find({
-            where: messageFileIds.size
-                ? [...messageFileIds].map((id) => ({ id }))
-                : [{ id: 'none' }],
-        });
+        const cabinetFiles = (await this.fileRepo.find({ where: { targetId: cabinetId } })).filter((f) => !messageFileIds.has(f.id));
         const removePhysical = (storagePath) => {
             const fullPath = path.join(this.uploadBaseDir, storagePath);
             if (fs.existsSync(fullPath)) {
                 fs.unlinkSync(fullPath);
             }
         };
-        for (const f of files) {
+        for (const f of cabinetFiles) {
             removePhysical(f.storagePath);
         }
-        for (const mf of messageFiles) {
-            if (!files.some((f) => f.id === mf.id)) {
-                removePhysical(mf.storagePath);
-            }
+        if (cabinetFiles.length > 0) {
+            await this.fileRepo.delete(cabinetFiles.map((f) => ({ id: f.id })));
         }
-        if (messageFileIds.size) {
-            await this.fileRepo.delete([...messageFileIds]);
-        }
-        await this.fileRepo.delete({ targetId: cabinetId });
         if (sessionIds.length > 0) {
-            await this.messageRepo.delete(sessionIds.map((id) => ({ sessionId: id })));
-            await this.sessionRepo.delete(sessionIds.map((id) => ({ id })));
+            await this.sessionMemberRepo.delete({ sessionId: (0, typeorm_2.In)(sessionIds), cabinetId });
         }
         await this.userRepo.delete({ cabinetId });
         await this.cabinetRepo.delete(cabinetId);
@@ -220,6 +218,7 @@ let AdminService = class AdminService {
             targetId: cabinetId,
             ts: Date.now(),
         });
+        this.eventsService.emit({ type: 'session.changed', ts: Date.now() });
     }
 };
 exports.AdminService = AdminService;
@@ -229,8 +228,10 @@ exports.AdminService = AdminService = __decorate([
     __param(1, (0, typeorm_1.InjectRepository)(cabinet_entity_1.Cabinet)),
     __param(2, (0, typeorm_1.InjectRepository)(file_entity_1.FileEntity)),
     __param(3, (0, typeorm_1.InjectRepository)(session_entity_1.Session)),
-    __param(4, (0, typeorm_1.InjectRepository)(message_entity_1.Message)),
+    __param(4, (0, typeorm_1.InjectRepository)(session_member_entity_1.SessionMember)),
+    __param(5, (0, typeorm_1.InjectRepository)(message_entity_1.Message)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,

@@ -95,6 +95,12 @@ export const sessionsApi = {
   downloadMessage(messageId: string) {
     return client.get<Blob>(`/sessions/messages/${messageId}/download`, { responseType: 'blob' })
   },
+  dissolve(sessionId: string) {
+    return client.delete<{ message: string }>(`/sessions/${sessionId}`).then((r) => r.data)
+  },
+  leave(sessionId: string) {
+    return client.delete<{ message: string }>(`/sessions/${sessionId}/members/me`).then((r) => r.data)
+  },
 }
 
 export const cabinetsApi = {

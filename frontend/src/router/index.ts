@@ -54,7 +54,7 @@ router.beforeEach((to) => {
     }
   }
   const user = JSON.parse(localStorage.getItem('mun_user') || 'null')
-  if (user?.role === 'ADMIN' && to.name !== 'admin' && to.name !== 'about') {
+  if (user?.role === 'ADMIN' && !['admin', 'about', 'consult'].includes(to.name as string)) {
     return { name: 'admin' }
   }
 })

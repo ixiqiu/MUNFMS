@@ -23,6 +23,7 @@ import { User, UserRole } from '../entities/user.entity';
 import { Cabinet } from '../entities/cabinet.entity';
 import { FileEntity } from '../entities/file.entity';
 import { Session } from '../entities/session.entity';
+import { SessionMember } from '../entities/session-member.entity';
 import { Message } from '../entities/message.entity';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
@@ -30,7 +31,7 @@ import { EventsModule } from '../events/events.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Cabinet, FileEntity, Session, Message]),
+    TypeOrmModule.forFeature([User, Cabinet, FileEntity, Session, SessionMember, Message]),
     EventsModule,
   ],
   controllers: [AdminController],

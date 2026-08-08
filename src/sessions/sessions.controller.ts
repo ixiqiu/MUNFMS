@@ -21,6 +21,7 @@ import {
   Get, 
   Post, 
   Patch, 
+  Delete,
   Body,
   Param, 
   UseGuards, 
@@ -103,6 +104,33 @@ export class SessionsController {
     return { session };
   }
 
+  /**
+   * 解散群聊（仅学术组）
+   */
+  @Delete(':id')
+  async dissolveSession(
+    @Param('id') id: string,
+    @CurrentUser() user: { id: string; cabinetId: string; role: UserRole },
+  ) {
+    await this.sessionsService.dissolveSession(id, user.role);
+    return { message: '群聊已解散' };
+  }
+
+  /**
+   * 退出群聊（代表；仅移除成员关系，群聊保留由学术组解散）
+   */
+  @Delete(':id/members/me')
+  async leaveSession(
+    @Param('id') id: string,
+    @CurrentUser() user: { id: string; cabinetId: string; role: UserRole },
+  ) {
+    if (user.role === UserRole.ACADEMIC || user.role === UserRole.ADMIN) {
+      throw new BadRequestException('学术组与管理员请使用解散群聊');
+    }
+    await this.sessionsService.leaveSession(id, user.cabinetId);
+    return { message: '已退出群聊' };
+  }
+
   // 旧单点接口已弃用（由 POST /api/sessions 拉群接口替代）
   // @Post('create')
   // async getOrCreateSession(
@@ -139,12 +167,12 @@ export class SessionsController {
       throw new BadRequestException('未提供文件');
     }
 
-    const isAcademic = user.role === UserRole.ACADEMIC;
+    const sendAsAcademic = user.role === UserRole.ACADEMIC || user.role === UserRole.ADMIN;
     const message = await this.sessionsService.sendMessage(
       id,
       file,
-      isAcademic ? null : user.cabinetId,
-      isAcademic ? MessageSenderType.ACADEMIC : MessageSenderType.CABINET,
+      sendAsAcademic ? null : user.cabinetId,
+      sendAsAcademic ? MessageSenderType.ACADEMIC : MessageSenderType.CABINET,
       user.id,
       user.role,
     );

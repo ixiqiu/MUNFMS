@@ -69,8 +69,11 @@ export class SessionsService {
     return !!member;
   }
 
-  private isAcademic(role: UserRole): boolean {
-    return role === UserRole.ACADEMIC;
+  /**
+   * 学术组与管理员拥有全部群聊的访问与管理权限
+   */
+  private hasFullSessionAccess(role: UserRole): boolean {
+    return role === UserRole.ACADEMIC || role === UserRole.ADMIN;
   }
 
   async migrateLegacySessions() {
@@ -151,7 +154,7 @@ export class SessionsService {
     if (!session) {
       throw new NotFoundException('群聊不存在');
     }
-    if (!this.isAcademic(role) && !(await this.isMember(sessionId, cabinetId))) {
+    if (!this.hasFullSessionAccess(role) && !(await this.isMember(sessionId, cabinetId))) {
       throw new ForbiddenException('无权操作该群聊');
     }
     session.name = name;
@@ -160,9 +163,63 @@ export class SessionsService {
     return savedSession;
   }
 
+  /**
+   * 学术组解散群聊：删除群聊及其全部消息、消息文件（含物理文件）与成员关系
+   */
+  async dissolveSession(sessionId: string, role: UserRole): Promise<void> {
+    if (!this.hasFullSessionAccess(role)) {
+      throw new ForbiddenException('只有学术组可以解散群聊，代表请使用退出群聊');
+    }
+    const session = await this.sessionRepo.findOne({ where: { id: sessionId } });
+    if (!session) {
+      throw new NotFoundException('群聊不存在');
+    }
+    await this.deleteSessionContent(sessionId);
+    this.eventsService.emit({ type: 'session.changed', ts: Date.now() });
+  }
+
+  /**
+   * 代表退出群聊：仅移除自己的成员关系；
+   * 群聊及其中文件保留，由学术组审议后决定是否解散
+   */
+  async leaveSession(sessionId: string, cabinetId: string): Promise<void> {
+    if (!(await this.isMember(sessionId, cabinetId))) {
+      throw new ForbiddenException('你不在该群聊中');
+    }
+    await this.sessionMemberRepo.delete({ sessionId, cabinetId });
+    this.eventsService.emit({ type: 'session.changed', ts: Date.now() });
+  }
+
+  /**
+   * 级联删除群聊内容（文件/消息/成员关系/群聊本身）
+   */
+  private async deleteSessionContent(sessionId: string): Promise<void> {
+    const messages = await this.messageRepo.find({ where: { sessionId } });
+    const messageFileIds = messages.map((m) => m.fileId).filter((id): id is string => !!id);
+
+    // 先删消息（messages.fileId 外键引用 files），再删文件记录
+    await this.messageRepo.delete({ sessionId });
+
+    if (messageFileIds.length > 0) {
+      const files = await this.fileRepo.find({
+        where: messageFileIds.map((id) => ({ id })),
+      });
+      for (const file of files) {
+        const fullPath = path.join(process.cwd(), 'uploads', file.storagePath);
+        if (fs.existsSync(fullPath)) {
+          fs.unlinkSync(fullPath);
+        }
+      }
+      await this.fileRepo.delete(messageFileIds.map((id) => ({ id })));
+    }
+
+    await this.sessionMemberRepo.delete({ sessionId });
+    await this.sessionRepo.delete({ id: sessionId });
+  }
+
   async getSessions(cabinetId: string, role: UserRole): Promise<any[]> {
     let sessions: Session[];
-    if (this.isAcademic(role)) {
+    if (this.hasFullSessionAccess(role)) {
       sessions = await this.sessionRepo.find({
         order: { lastMessageTime: 'DESC' },
       });
@@ -208,7 +265,7 @@ export class SessionsService {
       .createQueryBuilder('m')
       .where('m.sessionId = :sessionId', { sessionId })
       .andWhere('m.isRead = 0');
-    if (this.isAcademic(role)) {
+    if (this.hasFullSessionAccess(role)) {
       qb.andWhere("m.senderType != 'ACADEMIC'");
     } else {
       qb.andWhere(
@@ -228,7 +285,7 @@ export class SessionsService {
     if (!session) {
       throw new NotFoundException('群聊不存在');
     }
-    if (!this.isAcademic(role) && !(await this.isMember(sessionId, cabinetId))) {
+    if (!this.hasFullSessionAccess(role) && !(await this.isMember(sessionId, cabinetId))) {
       throw new ForbiddenException('无权访问该群聊');
     }
 
@@ -242,7 +299,7 @@ export class SessionsService {
       if (m.isRead) {
         return false;
       }
-      if (this.isAcademic(role)) {
+      if (this.hasFullSessionAccess(role)) {
         return m.senderType !== MessageSenderType.ACADEMIC;
       }
       return !(
@@ -302,7 +359,7 @@ export class SessionsService {
       throw new NotFoundException('群聊不存在');
     }
     if (
-      !this.isAcademic(role) &&
+      !this.hasFullSessionAccess(role) &&
       !(await this.isMember(sessionId, senderCabinetId))
     ) {
       throw new ForbiddenException('无权向该群聊发送消息');
@@ -382,7 +439,7 @@ export class SessionsService {
     }
 
     if (
-      !this.isAcademic(role) &&
+      !this.hasFullSessionAccess(role) &&
       !(await this.isMember(message.sessionId, cabinetId))
     ) {
       throw new ForbiddenException('无权访问该文件');

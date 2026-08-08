@@ -18,7 +18,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Edit, Plus, Upload } from '@element-plus/icons-vue'
 import { cabinetsApi, sessionsApi } from '../api'
 import { useAuthStore } from '../stores/auth'
@@ -27,6 +27,8 @@ import type { Cabinet, CabinetType, Message, Session } from '../types'
 
 const auth = useAuthStore()
 const eventsStore = useEventsStore()
+// 学术组与管理员拥有全部群聊的查看与解散权限
+const isManager = computed(() => auth.user?.role === 'ACADEMIC' || auth.user?.role === 'ADMIN')
 const myCabinetId = computed(() => auth.cabinetId)
 const myUserId = computed(() => auth.user?.id ?? '')
 
@@ -241,6 +243,59 @@ async function renameSession() {
   }
 }
 
+// ---------- 解散 / 退出群聊 ----------
+const closingSession = ref(false)
+
+async function dissolveCurrentSession() {
+  const session = currentSession.value
+  if (!session || !isManager.value) return
+  try {
+    await ElMessageBox.confirm(
+      `解散后将删除「${groupName(session)}」的全部消息与文件，且无法恢复。确定解散吗？`,
+      '解散群聊',
+      { type: 'warning', confirmButtonText: '确认解散', cancelButtonText: '取消' },
+    )
+  } catch {
+    return
+  }
+  closingSession.value = true
+  try {
+    await sessionsApi.dissolve(session.id)
+    currentSessionId.value = null
+    await refreshSessions()
+    ElMessage.success('群聊已解散')
+  } catch {
+    // 错误已由 axios 拦截器统一提示
+  } finally {
+    closingSession.value = false
+  }
+}
+
+async function leaveCurrentSession() {
+  const session = currentSession.value
+  if (!session || isManager.value) return
+  try {
+    await ElMessageBox.confirm(
+      `退出后你将不再看到「${groupName(session)}」的群聊与消息，群聊及其中文件将保留给学术组审议。确定退出吗？`,
+      '退出群聊',
+      { type: 'warning', confirmButtonText: '确认退出', cancelButtonText: '取消' },
+    )
+  } catch {
+    return
+  }
+  closingSession.value = true
+  try {
+    await sessionsApi.leave(session.id)
+    currentSessionId.value = null
+    await refreshSessions()
+    ElMessage.success('已退出群聊')
+  } catch {
+    // 错误已由 axios 拦截器统一提示
+  } finally {
+    closingSession.value = false
+  }
+}
+
 // ---------- 发送文件 ----------
 const fileInput = ref<HTMLInputElement | null>(null)
 const sending = ref(false)
@@ -334,7 +389,7 @@ function isOwn(message: Message): boolean {
         <div class="session-panel-header">
           <span class="session-panel-title">磋商群聊</span>
           <el-button
-            v-if="!auth.isAcademic"
+            v-if="!isManager"
             type="primary"
             size="small"
             :icon="Plus"
@@ -371,7 +426,7 @@ function isOwn(message: Message): boolean {
         </div>
         <div v-else class="session-empty">
           <el-empty
-            :description="auth.isAcademic ? '暂无群聊' : '暂无群聊，点击新建群发起磋商'"
+            :description="isManager ? '暂无群聊' : '暂无群聊，点击新建群发起磋商'"
             :image-size="80"
           />
         </div>
@@ -387,7 +442,7 @@ function isOwn(message: Message): boolean {
               </span>
               <span class="chat-target-type">{{ currentSession.members.length }} 人</span>
               <el-button
-                v-if="!auth.isAcademic"
+                v-if="!isManager"
                 link
                 type="primary"
                 size="small"
@@ -396,12 +451,33 @@ function isOwn(message: Message): boolean {
               >
                 改群名
               </el-button>
-              <el-tag v-else size="small" type="info" class="academic-header-tag">
-                学团身份 · 全部群聊可见
-              </el-tag>
+              <el-button
+                v-if="!isManager"
+                link
+                type="danger"
+                size="small"
+                :loading="closingSession"
+                @click="leaveCurrentSession"
+              >
+                退出群聊
+              </el-button>
+              <template v-else>
+                <el-tag size="small" type="info" class="academic-header-tag">
+                  {{ auth.user?.role === 'ADMIN' ? '管理员' : '学团身份' }} · 全部群聊可见
+                </el-tag>
+                <el-button
+                  link
+                  type="danger"
+                  size="small"
+                  :loading="closingSession"
+                  @click="dissolveCurrentSession"
+                >
+                  解散群聊
+                </el-button>
+              </template>
             </div>
             <el-button
-              v-if="!auth.isAcademic"
+              v-if="!isManager"
               type="primary"
               size="small"
               :icon="Plus"

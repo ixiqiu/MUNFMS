@@ -52,6 +52,17 @@ let SessionsController = class SessionsController {
         const session = await this.sessionsService.renameSession(id, body.name, user.cabinetId, user.role);
         return { session };
     }
+    async dissolveSession(id, user) {
+        await this.sessionsService.dissolveSession(id, user.role);
+        return { message: '群聊已解散' };
+    }
+    async leaveSession(id, user) {
+        if (user.role === user_entity_1.UserRole.ACADEMIC || user.role === user_entity_1.UserRole.ADMIN) {
+            throw new common_1.BadRequestException('学术组与管理员请使用解散群聊');
+        }
+        await this.sessionsService.leaveSession(id, user.cabinetId);
+        return { message: '已退出群聊' };
+    }
     async getMessages(id, user) {
         const messages = await this.sessionsService.getMessages(id, user.cabinetId, user.role);
         return { messages };
@@ -60,8 +71,8 @@ let SessionsController = class SessionsController {
         if (!file) {
             throw new common_1.BadRequestException('未提供文件');
         }
-        const isAcademic = user.role === user_entity_1.UserRole.ACADEMIC;
-        const message = await this.sessionsService.sendMessage(id, file, isAcademic ? null : user.cabinetId, isAcademic ? message_entity_1.MessageSenderType.ACADEMIC : message_entity_1.MessageSenderType.CABINET, user.id, user.role);
+        const sendAsAcademic = user.role === user_entity_1.UserRole.ACADEMIC || user.role === user_entity_1.UserRole.ADMIN;
+        const message = await this.sessionsService.sendMessage(id, file, sendAsAcademic ? null : user.cabinetId, sendAsAcademic ? message_entity_1.MessageSenderType.ACADEMIC : message_entity_1.MessageSenderType.CABINET, user.id, user.role);
         return { message };
     }
     async downloadFile(messageId, user, res) {
@@ -96,6 +107,22 @@ __decorate([
     __metadata("design:paramtypes", [String, Object, Object]),
     __metadata("design:returntype", Promise)
 ], SessionsController.prototype, "renameSession", null);
+__decorate([
+    (0, common_1.Delete)(':id'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], SessionsController.prototype, "dissolveSession", null);
+__decorate([
+    (0, common_1.Delete)(':id/members/me'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], SessionsController.prototype, "leaveSession", null);
 __decorate([
     (0, common_1.Get)(':id/messages'),
     __param(0, (0, common_1.Param)('id')),

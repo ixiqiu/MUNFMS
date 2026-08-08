@@ -16,6 +16,7 @@ const user_entity_1 = require("../entities/user.entity");
 const cabinet_entity_1 = require("../entities/cabinet.entity");
 const file_entity_1 = require("../entities/file.entity");
 const session_entity_1 = require("../entities/session.entity");
+const session_member_entity_1 = require("../entities/session-member.entity");
 const message_entity_1 = require("../entities/message.entity");
 const admin_controller_1 = require("./admin.controller");
 const admin_service_1 = require("./admin.service");
@@ -35,7 +36,7 @@ exports.AdminModule = AdminModule;
 exports.AdminModule = AdminModule = __decorate([
     (0, common_1.Module)({
         imports: [
-            typeorm_1.TypeOrmModule.forFeature([user_entity_1.User, cabinet_entity_1.Cabinet, file_entity_1.FileEntity, session_entity_1.Session, message_entity_1.Message]),
+            typeorm_1.TypeOrmModule.forFeature([user_entity_1.User, cabinet_entity_1.Cabinet, file_entity_1.FileEntity, session_entity_1.Session, session_member_entity_1.SessionMember, message_entity_1.Message]),
             events_module_1.EventsModule,
         ],
         controllers: [admin_controller_1.AdminController],
