@@ -49,10 +49,16 @@ export class Message {
 
   @ManyToOne(() => FileEntity)
   @JoinColumn({ name: 'fileId' })
-  file: FileEntity;
+  file: FileEntity | null;
 
-  @Column()
-  fileId: string;
+  @Column({ nullable: true })
+  fileId: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  content: string | null;
+
+  @Column({ nullable: true })
+  senderUserId: string | null;
 
   @Column({ default: false })
   isRead: boolean;

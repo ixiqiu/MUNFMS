@@ -154,25 +154,28 @@ export class SessionsController {
   }
 
   /**
-   * 发送磋商文件消息（学团以组织身份发送）
+   * 发送磋商消息（学团以组织身份发送）；支持文件、文字或两者
    */
   @Post(':id/messages')
   @UseInterceptors(FileInterceptor('file', uploadOptions))
   async sendMessage(
     @Param('id') id: string,
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @Body('content') content: string | undefined,
     @CurrentUser() user: { id: string; cabinetId: string; role: UserRole },
   ) {
-    if (!file) {
-      throw new BadRequestException('未提供文件');
+    if (!file && !content?.trim()) {
+      throw new BadRequestException('请发送文件或输入文字');
     }
 
     const sendAsAcademic = user.role === UserRole.ACADEMIC || user.role === UserRole.ADMIN;
     const message = await this.sessionsService.sendMessage(
       id,
-      file,
+      file ?? null,
+      content?.trim() || null,
       sendAsAcademic ? null : user.cabinetId,
       sendAsAcademic ? MessageSenderType.ACADEMIC : MessageSenderType.CABINET,
+      user.id,
       user.id,
       user.role,
     );
@@ -188,12 +191,13 @@ export class SessionsController {
     @CurrentUser() user: { id: string; cabinetId: string; role: UserRole },
     @Res({ passthrough: true }) res: Response,
   ) {
-    const { readStream, fileName } = await this.sessionsService.downloadFile(
+    const { readStream, fileName, mimeType } = await this.sessionsService.downloadFile(
       messageId,
       user.cabinetId,
       user.role,
     );
     
+    res.setHeader('Content-Type', mimeType);
     const asciiFallback = fileName.replace(/[^\x20-\x7E]/g, '_').replace(/"/g, '');
     res.setHeader(
       'Content-Disposition',
