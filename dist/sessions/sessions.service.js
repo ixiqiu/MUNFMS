@@ -287,14 +287,32 @@ let SessionsService = class SessionsService {
             })
             : [];
         const academicNameMap = new Map(academicUsers.map((u) => [u.id, u.cabinet?.name]));
-        return messages.map((m) => ({
-            ...m,
-            senderName: m.senderType === message_entity_1.MessageSenderType.ACADEMIC
-                ? academicNameMap.get(m.file?.uploaderId) || '学团'
-                : senderNameMap.get(m.senderCabinetId) || '未知',
-        }));
+        const uploaderIds = messages
+            .map((m) => m.senderUserId ?? m.file?.uploaderId)
+            .filter((id) => !!id);
+        const uploaderUsers = uploaderIds.length
+            ? await this.userRepo.find({
+                where: [...new Set(uploaderIds)].map((id) => ({ id })),
+                relations: ['cabinet'],
+            })
+            : [];
+        const uploaderNameMap = new Map(uploaderUsers.map((u) => [u.id, u.name]));
+        const uploaderCabinetNameMap = new Map(uploaderUsers.map((u) => [u.id, u.cabinet?.name ?? null]));
+        return messages.map((m) => {
+            const uploaderId = m.senderUserId ?? m.file?.uploaderId ?? null;
+            return {
+                ...m,
+                senderName: m.senderType === message_entity_1.MessageSenderType.ACADEMIC
+                    ? academicNameMap.get(m.file?.uploaderId) || '学团'
+                    : senderNameMap.get(m.senderCabinetId) || '未知',
+                uploaderName: uploaderId ? uploaderNameMap.get(uploaderId) ?? null : null,
+                uploaderCabinetName: uploaderId
+                    ? uploaderCabinetNameMap.get(uploaderId) ?? null
+                    : null,
+            };
+        });
     }
-    async sendMessage(sessionId, file, senderCabinetId, senderType, uploaderId, role) {
+    async sendMessage(sessionId, file, content, senderCabinetId, senderType, uploaderId, senderUserId, role) {
         const session = await this.sessionRepo.findOne({ where: { id: sessionId } });
         if (!session) {
             throw new common_1.NotFoundException('群聊不存在');
@@ -307,25 +325,32 @@ let SessionsService = class SessionsService {
         if (!fs.existsSync(storageDir)) {
             fs.mkdirSync(storageDir, { recursive: true });
         }
-        const uniqueFileName = `${(0, uuid_1.v4)()}_${file.originalname}`;
-        const storagePath = path.join(storageDir, uniqueFileName);
-        const relativePath = path.join('consult', uniqueFileName);
+        let storagePath = null;
         try {
-            await fs.promises.rename(file.path, storagePath);
-            const fileEntity = this.fileRepo.create({
-                fileName: file.originalname,
-                storagePath: relativePath,
-                spaceType: file_entity_1.SpaceType.CABINET,
-                uploaderId,
-                targetId: senderType === message_entity_1.MessageSenderType.ACADEMIC ? null : senderCabinetId,
-                isFromConference: false,
-            });
-            const savedFile = await this.fileRepo.save(fileEntity);
+            let fileId = null;
+            if (file) {
+                const uniqueFileName = `${(0, uuid_1.v4)()}_${file.originalname}`;
+                storagePath = path.join(storageDir, uniqueFileName);
+                const relativePath = path.join('consult', uniqueFileName);
+                await fs.promises.rename(file.path, storagePath);
+                const fileEntity = this.fileRepo.create({
+                    fileName: file.originalname,
+                    storagePath: relativePath,
+                    spaceType: file_entity_1.SpaceType.CABINET,
+                    uploaderId,
+                    targetId: senderType === message_entity_1.MessageSenderType.ACADEMIC ? null : senderCabinetId,
+                    isFromConference: false,
+                });
+                const savedFile = await this.fileRepo.save(fileEntity);
+                fileId = savedFile.id;
+            }
             const message = this.messageRepo.create({
                 sessionId,
                 senderCabinetId,
                 senderType,
-                fileId: savedFile.id,
+                fileId,
+                content,
+                senderUserId,
                 isRead: false,
             });
             const savedMessage = await this.messageRepo.save(message);
@@ -337,7 +362,7 @@ let SessionsService = class SessionsService {
                 actorId: uploaderId,
                 ts: Date.now(),
             });
-            if (senderType === message_entity_1.MessageSenderType.CABINET) {
+            if (file && senderType === message_entity_1.MessageSenderType.CABINET) {
                 this.eventsService.emit({
                     type: 'file.changed',
                     spaceType: file_entity_1.SpaceType.CABINET,
@@ -349,7 +374,7 @@ let SessionsService = class SessionsService {
             return savedMessage;
         }
         catch (error) {
-            if (fs.existsSync(storagePath)) {
+            if (storagePath && fs.existsSync(storagePath)) {
                 await fs.promises.unlink(storagePath);
             }
             throw error;
@@ -367,12 +392,35 @@ let SessionsService = class SessionsService {
             !(await this.isMember(message.sessionId, cabinetId))) {
             throw new common_1.ForbiddenException('无权访问该文件');
         }
+        if (!message.file) {
+            throw new common_1.NotFoundException('消息没有附件');
+        }
+        const mimeTypes = {
+            '.png': 'image/png',
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.gif': 'image/gif',
+            '.webp': 'image/webp',
+            '.svg': 'image/svg+xml',
+            '.bmp': 'image/bmp',
+            '.pdf': 'application/pdf',
+            '.doc': 'application/msword',
+            '.docx': 'application/msword',
+            '.xls': 'application/vnd.ms-excel',
+            '.xlsx': 'application/vnd.ms-excel',
+            '.ppt': 'application/vnd.ms-powerpoint',
+            '.pptx': 'application/vnd.ms-powerpoint',
+            '.txt': 'text/plain',
+            '.zip': 'application/zip',
+        };
         const fullPath = path.join(process.cwd(), 'uploads', message.file.storagePath);
         if (!fs.existsSync(fullPath)) {
             throw new common_1.NotFoundException('物理文件不存在');
         }
+        const ext = path.extname(message.file.fileName).toLowerCase();
+        const mimeType = mimeTypes[ext] ?? 'application/octet-stream';
         const readStream = fs.createReadStream(fullPath);
-        return { readStream, fileName: message.file.fileName };
+        return { readStream, fileName: message.file.fileName, mimeType };
     }
 };
 exports.SessionsService = SessionsService;
