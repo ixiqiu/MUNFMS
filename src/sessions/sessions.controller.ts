@@ -21,6 +21,7 @@ import {
   Get, 
   Post, 
   Patch, 
+  Delete,
   Body,
   Param, 
   UseGuards, 
@@ -101,6 +102,33 @@ export class SessionsController {
       user.role,
     );
     return { session };
+  }
+
+  /**
+   * 解散群聊（仅学术组）
+   */
+  @Delete(':id')
+  async dissolveSession(
+    @Param('id') id: string,
+    @CurrentUser() user: { id: string; cabinetId: string; role: UserRole },
+  ) {
+    await this.sessionsService.dissolveSession(id, user.role);
+    return { message: '群聊已解散' };
+  }
+
+  /**
+   * 退出群聊（代表；剩余成员不足 2 个内阁时自动解散）
+   */
+  @Delete(':id/members/me')
+  async leaveSession(
+    @Param('id') id: string,
+    @CurrentUser() user: { id: string; cabinetId: string; role: UserRole },
+  ) {
+    if (user.role === UserRole.ACADEMIC) {
+      throw new BadRequestException('学术组请使用解散群聊');
+    }
+    await this.sessionsService.leaveSession(id, user.cabinetId);
+    return { message: '已退出群聊' };
   }
 
   // 旧单点接口已弃用（由 POST /api/sessions 拉群接口替代）

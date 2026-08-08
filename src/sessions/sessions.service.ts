@@ -160,6 +160,65 @@ export class SessionsService {
     return savedSession;
   }
 
+  /**
+   * 学术组解散群聊：删除群聊及其全部消息、消息文件（含物理文件）与成员关系
+   */
+  async dissolveSession(sessionId: string, role: UserRole): Promise<void> {
+    if (!this.isAcademic(role)) {
+      throw new ForbiddenException('只有学术组可以解散群聊，代表请使用退出群聊');
+    }
+    const session = await this.sessionRepo.findOne({ where: { id: sessionId } });
+    if (!session) {
+      throw new NotFoundException('群聊不存在');
+    }
+    await this.deleteSessionContent(sessionId);
+    this.eventsService.emit({ type: 'session.changed', ts: Date.now() });
+  }
+
+  /**
+   * 代表退出群聊：移除自己的成员关系；
+   * 若剩余成员不足 2 个内阁（群聊失去意义），自动解散整个群聊
+   */
+  async leaveSession(sessionId: string, cabinetId: string): Promise<void> {
+    if (!(await this.isMember(sessionId, cabinetId))) {
+      throw new ForbiddenException('你不在该群聊中');
+    }
+    const remaining = await this.sessionMemberRepo.find({
+      where: { sessionId },
+    });
+    if (remaining.length <= 2) {
+      await this.deleteSessionContent(sessionId);
+    } else {
+      await this.sessionMemberRepo.delete({ sessionId, cabinetId });
+    }
+    this.eventsService.emit({ type: 'session.changed', ts: Date.now() });
+  }
+
+  /**
+   * 级联删除群聊内容（文件/消息/成员关系/群聊本身）
+   */
+  private async deleteSessionContent(sessionId: string): Promise<void> {
+    const messages = await this.messageRepo.find({ where: { sessionId } });
+    const messageFileIds = messages.map((m) => m.fileId).filter((id): id is string => !!id);
+
+    if (messageFileIds.length > 0) {
+      const files = await this.fileRepo.find({
+        where: messageFileIds.map((id) => ({ id })),
+      });
+      for (const file of files) {
+        const fullPath = path.join(process.cwd(), 'uploads', file.storagePath);
+        if (fs.existsSync(fullPath)) {
+          fs.unlinkSync(fullPath);
+        }
+      }
+      await this.fileRepo.delete(messageFileIds.map((id) => ({ id })));
+    }
+
+    await this.messageRepo.delete({ sessionId });
+    await this.sessionMemberRepo.delete({ sessionId });
+    await this.sessionRepo.delete({ id: sessionId });
+  }
+
   async getSessions(cabinetId: string, role: UserRole): Promise<any[]> {
     let sessions: Session[];
     if (this.isAcademic(role)) {

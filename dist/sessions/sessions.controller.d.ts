@@ -31,6 +31,20 @@ export declare class SessionsController {
     }): Promise<{
         session: import("../entities").Session;
     }>;
+    dissolveSession(id: string, user: {
+        id: string;
+        cabinetId: string;
+        role: UserRole;
+    }): Promise<{
+        message: string;
+    }>;
+    leaveSession(id: string, user: {
+        id: string;
+        cabinetId: string;
+        role: UserRole;
+    }): Promise<{
+        message: string;
+    }>;
     getMessages(id: string, user: {
         id: string;
         cabinetId: string;

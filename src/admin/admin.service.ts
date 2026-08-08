@@ -30,6 +30,7 @@ import { User, UserRole } from '../entities/user.entity';
 import { Cabinet, CabinetType } from '../entities/cabinet.entity';
 import { FileEntity } from '../entities/file.entity';
 import { Session } from '../entities/session.entity';
+import { SessionMember } from '../entities/session-member.entity';
 import { Message } from '../entities/message.entity';
 import { EventsService } from '../events/events.service';
 
@@ -46,6 +47,8 @@ export class AdminService {
     private fileRepo: Repository<FileEntity>,
     @InjectRepository(Session)
     private sessionRepo: Repository<Session>,
+    @InjectRepository(SessionMember)
+    private sessionMemberRepo: Repository<SessionMember>,
     @InjectRepository(Message)
     private messageRepo: Repository<Message>,
     private eventsService: EventsService,
@@ -165,10 +168,20 @@ export class AdminService {
     }
 
     const files = await this.fileRepo.find({ where: { targetId: cabinetId } });
-    const sessions = await this.sessionRepo.find({
+
+    // 涉及该内阁的群聊：优先按 session_members 关联查询（拉群结构），兼容旧版 cabinetA/cabinetB 字段
+    const memberSessions = await this.sessionMemberRepo.find({
+      where: { cabinetId },
+    });
+    const legacySessions = await this.sessionRepo.find({
       where: [{ cabinetA_id: cabinetId }, { cabinetB_id: cabinetId }],
     });
-    const sessionIds = sessions.map((s) => s.id);
+    const sessionIds = [
+      ...new Set([
+        ...memberSessions.map((m) => m.sessionId),
+        ...legacySessions.map((s) => s.id),
+      ]),
+    ];
 
     let messages: Message[] = [];
     if (sessionIds.length > 0) {
@@ -207,6 +220,7 @@ export class AdminService {
     await this.fileRepo.delete({ targetId: cabinetId });
     if (sessionIds.length > 0) {
       await this.messageRepo.delete(sessionIds.map((id) => ({ sessionId: id })));
+      await this.sessionMemberRepo.delete(sessionIds.map((id) => ({ sessionId: id })));
       await this.sessionRepo.delete(sessionIds.map((id) => ({ id })));
     }
     await this.userRepo.delete({ cabinetId });
@@ -222,5 +236,6 @@ export class AdminService {
       targetId: cabinetId,
       ts: Date.now(),
     });
+    this.eventsService.emit({ type: 'session.changed', ts: Date.now() });
   }
 }

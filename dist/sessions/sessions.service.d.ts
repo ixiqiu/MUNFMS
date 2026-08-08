@@ -23,6 +23,9 @@ export declare class SessionsService {
     migrateLegacySessions(): Promise<void>;
     createGroupSession(cabinetIds: string[], name: string | undefined, creatorCabinetId: string): Promise<Session>;
     renameSession(sessionId: string, name: string, cabinetId: string, role: UserRole): Promise<Session>;
+    dissolveSession(sessionId: string, role: UserRole): Promise<void>;
+    leaveSession(sessionId: string, cabinetId: string): Promise<void>;
+    private deleteSessionContent;
     getSessions(cabinetId: string, role: UserRole): Promise<any[]>;
     private countUnread;
     getMessages(sessionId: string, cabinetId: string, role: UserRole): Promise<any[]>;
