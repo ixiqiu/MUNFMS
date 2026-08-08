@@ -57,17 +57,18 @@ async function submit() {
 
       <el-form @submit.prevent="submit" size="large">
         <el-form-item>
-          <el-input v-model="form.username" placeholder="用户名" :prefix-icon="'User'">
+          <el-input v-model="form.username" name="username" autocomplete="username" placeholder="用户名">
             <template #prefix><el-icon><User /></el-icon></template>
           </el-input>
         </el-form-item>
         <el-form-item>
           <el-input
             v-model="form.password"
+            name="password"
+            autocomplete="current-password"
             type="password"
             placeholder="密码"
             show-password
-            @keyup.enter="submit"
           >
             <template #prefix><el-icon><Lock /></el-icon></template>
           </el-input>
@@ -77,6 +78,7 @@ async function submit() {
           class="submit-btn"
           size="large"
           :loading="loading"
+          native-type="submit"
           @click="submit"
         >
           登 录

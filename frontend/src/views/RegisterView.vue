@@ -115,15 +115,15 @@ onMounted(loadCabinets)
 
       <el-form @submit.prevent="submit" label-position="top" size="large">
         <el-form-item label="用户名">
-          <el-input v-model="form.name" placeholder="登录用户名" />
+          <el-input v-model="form.name" name="username" autocomplete="username" placeholder="登录用户名" />
         </el-form-item>
 
         <el-form-item label="密码">
-          <el-input v-model="form.password" type="password" show-password placeholder="至少 6 位" />
+          <el-input v-model="form.password" name="new-password" autocomplete="new-password" type="password" show-password placeholder="至少 6 位" />
         </el-form-item>
 
         <el-form-item label="确认密码">
-          <el-input v-model="form.confirm" type="password" show-password placeholder="再次输入密码" />
+          <el-input v-model="form.confirm" name="confirm-password" autocomplete="new-password" type="password" show-password placeholder="再次输入密码" />
         </el-form-item>
 
         <el-form-item label="身份">
@@ -150,7 +150,7 @@ onMounted(loadCabinets)
           </el-select>
         </el-form-item>
 
-        <el-button type="primary" class="submit-btn" size="large" :loading="loading" @click="submit">
+        <el-button type="primary" class="submit-btn" size="large" :loading="loading" native-type="submit" @click="submit">
           注 册
         </el-button>
       </el-form>
