@@ -85,9 +85,10 @@ export const sessionsApi = {
   messages(sessionId: string) {
     return client.get<{ messages: Message[] }>(`/sessions/${sessionId}/messages`).then((r) => r.data.messages)
   },
-  sendMessage(sessionId: string, file: File) {
+  sendMessage(sessionId: string, payload: { file?: File; content?: string }) {
     const form = new FormData()
-    form.append('file', file)
+    if (payload.file) form.append('file', payload.file)
+    if (payload.content) form.append('content', payload.content)
     return client
       .post<{ message: Message }>(`/sessions/${sessionId}/messages`, form)
       .then((r) => r.data.message)

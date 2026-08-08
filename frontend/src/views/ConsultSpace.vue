@@ -73,6 +73,7 @@ async function loadMessages(sessionId: string, behavior: ScrollBehavior = 'auto'
       messages.value = list
       nextTick(() => scrollToBottom(behavior))
     }
+    preloadImageUrls(list)
   } catch {
     // 错误已由 axios 拦截器统一提示
   }
@@ -114,6 +115,7 @@ function stopMessageTimer() {
 }
 
 watch(currentSessionId, (id) => {
+  revokeAllImageUrls()
   if (id) {
     messages.value = []
     loadMessages(id, 'auto')
@@ -157,6 +159,7 @@ onUnmounted(() => {
   unsubscribe?.()
   stopSessionTimer()
   stopMessageTimer()
+  revokeAllImageUrls()
 })
 
 function selectSession(session: Session) {
@@ -315,7 +318,7 @@ async function onFileChange(e: Event) {
   if (!file || !sessionId) return
   sending.value = true
   try {
-    await sessionsApi.sendMessage(sessionId, file)
+    await sessionsApi.sendMessage(sessionId, { file })
     ElMessage.success('文件发送成功')
     await loadMessages(sessionId, 'smooth')
     await refreshSessions()
@@ -325,6 +328,135 @@ async function onFileChange(e: Event) {
     sending.value = false
     input.value = ''
   }
+}
+
+// ---------- 发送文字消息 ----------
+const chatText = ref('')
+const sendingText = ref(false)
+
+function onTextKeydown(e: KeyboardEvent) {
+  if (e.isComposing || e.keyCode === 229) return
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault()
+    void sendText()
+  }
+}
+
+async function sendText() {
+  const sessionId = currentSessionId.value
+  const text = chatText.value.trim()
+  if (!sessionId) {
+    ElMessage.warning('请先选择群聊')
+    return
+  }
+  if (!text) return
+  sendingText.value = true
+  try {
+    await sessionsApi.sendMessage(sessionId, { content: text })
+    chatText.value = ''
+    await loadMessages(sessionId, 'smooth')
+    await refreshSessions()
+  } catch {
+    // 错误已由 axios 拦截器统一提示
+  } finally {
+    sendingText.value = false
+  }
+}
+
+// ---------- 粘贴即上传（带预览确认） ----------
+const pasteDialogVisible = ref(false)
+const pasteFile = ref<File | null>(null)
+const pastePreviewUrl = ref('')
+const sendingPaste = ref(false)
+
+function onPaste(e: ClipboardEvent) {
+  const items = e.clipboardData?.items
+  if (!items) return
+  for (const item of items) {
+    if (item.kind !== 'file') continue
+    const file = item.getAsFile()
+    if (!file) continue
+    e.preventDefault()
+    openPasteDialog(file)
+    return
+  }
+}
+
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+  return `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`
+}
+
+function openPasteDialog(file: File) {
+  if (pastePreviewUrl.value) URL.revokeObjectURL(pastePreviewUrl.value)
+  pasteFile.value = file
+  pastePreviewUrl.value = file.type.startsWith('image/') ? URL.createObjectURL(file) : ''
+  pasteDialogVisible.value = true
+}
+
+function closePasteDialog() {
+  if (pastePreviewUrl.value) URL.revokeObjectURL(pastePreviewUrl.value)
+  pastePreviewUrl.value = ''
+  pasteFile.value = null
+  pasteDialogVisible.value = false
+}
+
+async function confirmPasteSend() {
+  const sessionId = currentSessionId.value
+  const file = pasteFile.value
+  if (!sessionId || !file) return
+  sendingPaste.value = true
+  try {
+    const caption = chatText.value.trim()
+    await sessionsApi.sendMessage(sessionId, caption ? { file, content: caption } : { file })
+    chatText.value = ''
+    pasteDialogVisible.value = false
+    ElMessage.success('文件发送成功')
+    await loadMessages(sessionId, 'smooth')
+    await refreshSessions()
+  } catch {
+    // 错误已由 axios 拦截器统一提示
+  } finally {
+    sendingPaste.value = false
+  }
+}
+
+// ---------- 图片内联预览 ----------
+const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp']
+const imageUrlMap = ref<Record<string, string>>({})
+
+function isImageFile(fileName: string): boolean {
+  const ext = fileName.split('.').pop()?.toLowerCase() ?? ''
+  return IMAGE_EXTENSIONS.includes(ext)
+}
+
+function hasImage(m: Message): boolean {
+  return !!m.file && isImageFile(m.file.fileName)
+}
+
+async function loadImageUrl(m: Message) {
+  if (!m.file || !isImageFile(m.file.fileName) || imageUrlMap.value[m.id]) return
+  try {
+    const res = await sessionsApi.downloadMessage(m.id)
+    if (imageUrlMap.value[m.id]) return
+    if (m.sessionId !== currentSessionId.value) return
+    imageUrlMap.value[m.id] = URL.createObjectURL(res.data)
+  } catch {
+    // 错误已由 axios 拦截器统一提示
+  }
+}
+
+function preloadImageUrls(list: Message[]) {
+  for (const m of list) {
+    if (hasImage(m) && !imageUrlMap.value[m.id]) void loadImageUrl(m)
+  }
+}
+
+function revokeAllImageUrls() {
+  for (const url of Object.values(imageUrlMap.value)) URL.revokeObjectURL(url)
+  imageUrlMap.value = {}
 }
 
 // ---------- 下载 ----------
@@ -378,6 +510,13 @@ function isOwn(message: Message): boolean {
     message.senderType === 'CABINET' &&
     message.senderCabinetId === myCabinetId.value
   )
+}
+
+function senderLabel(m: Message): string {
+  const name = m.uploaderName || m.senderName || '未知'
+  if (m.senderType === 'ACADEMIC') return `${name}（学术）`
+  if (m.uploaderCabinetName) return `${name}（${m.uploaderCabinetName}）`
+  return name
 }
 </script>
 
@@ -489,7 +628,7 @@ function isOwn(message: Message): boolean {
 
           <div ref="messageListRef" class="message-list">
             <div v-if="!messages.length" class="message-empty">
-              <el-empty description="暂无消息，发送一个文件开始磋商" :image-size="80" />
+              <el-empty description="暂无消息，发送文字或文件开始磋商" :image-size="80" />
             </div>
             <div
               v-for="m in messages"
@@ -498,19 +637,33 @@ function isOwn(message: Message): boolean {
               :class="{ own: isOwn(m) }"
             >
               <div class="message-sender">
-                <span class="sender-name">{{ m.senderName || '未知' }}</span>
-                <el-tag
-                  v-if="m.senderType === 'ACADEMIC'"
-                  size="small"
-                  type="warning"
-                  class="sender-tag"
-                >
-                  学术
-                </el-tag>
+                <span class="sender-name">{{ senderLabel(m) }}</span>
               </div>
-              <div class="message-bubble">
+              <div class="message-bubble" :class="{ 'with-image': hasImage(m) }">
+                <div v-if="m.content" class="text-bubble">{{ m.content }}</div>
                 <template v-if="m.file">
-                  <div class="file-card" @click="downloadMessage(m)">
+                  <template v-if="hasImage(m)">
+                    <div class="image-container">
+                      <el-image
+                        v-if="imageUrlMap[m.id]"
+                        :src="imageUrlMap[m.id]"
+                        :preview-src-list="[imageUrlMap[m.id]]"
+                        preview-teleported
+                        fit="contain"
+                        class="inline-image"
+                      >
+                        <template #error>
+                          <div class="image-fallback">图片加载失败</div>
+                        </template>
+                      </el-image>
+                      <div v-else class="image-fallback">图片加载中…</div>
+                      <div class="image-meta">
+                        <span class="file-name">{{ m.file.fileName }}</span>
+                        <span class="file-hint">点击预览</span>
+                      </div>
+                    </div>
+                  </template>
+                  <div v-else class="file-card" @click="downloadMessage(m)">
                     <el-icon class="file-icon"><Document /></el-icon>
                     <div class="file-info">
                       <span class="file-name">{{ m.file.fileName }}</span>
@@ -525,14 +678,50 @@ function isOwn(message: Message): boolean {
           </div>
 
           <div class="chat-toolbar">
-            <el-button type="primary" :loading="sending" :icon="Upload" @click="triggerFileSelect">
-              发送文件
-            </el-button>
-            <span class="toolbar-hint">
-              支持发送任意文件，群成员可下载；{{
-                eventsStore.mode === 'polling' ? '实时连接已断开，消息每 3 秒轮询刷新' : '消息实时更新'
-              }}
-            </span>
+            <div class="chat-input-row">
+              <el-input
+                v-model="chatText"
+                type="textarea"
+                :rows="1"
+                autosize
+                resize="none"
+                class="chat-text-input"
+                placeholder="输入文字，Enter 发送 / Shift+Enter 换行；支持粘贴图片、文件直接上传"
+                :disabled="!currentSessionId || sendingText"
+                @keydown="onTextKeydown"
+                @paste="onPaste"
+              />
+              <el-button
+                type="primary"
+                class="chat-send-btn"
+                :loading="sendingText"
+                :disabled="!currentSessionId || !chatText.trim()"
+                @click="sendText"
+              >
+                发送
+              </el-button>
+            </div>
+            <div class="chat-actions-row">
+              <el-button
+                type="primary"
+                plain
+                :loading="sending"
+                :disabled="!currentSessionId"
+                :icon="Upload"
+                @click="triggerFileSelect"
+              >
+                发送文件
+              </el-button>
+              <span class="toolbar-hint">
+                <span>支持粘贴图片/文件直接上传</span>
+                <span class="toolbar-hint-sep">·</span>
+                <span>
+                  {{
+                    eventsStore.mode === 'polling' ? '实时连接已断开，消息每 3 秒轮询刷新' : '消息实时更新'
+                  }}
+                </span>
+              </span>
+            </div>
             <input ref="fileInput" type="file" class="hidden-file-input" @change="onFileChange" />
           </div>
         </template>
@@ -613,6 +802,48 @@ function isOwn(message: Message): boolean {
       <template #footer>
         <el-button @click="renameDialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="renaming" @click="renameSession">保存</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 粘贴上传预览对话框 -->
+    <el-dialog
+      v-model="pasteDialogVisible"
+      title="粘贴上传预览"
+      width="440px"
+      :close-on-click-modal="false"
+      @close="closePasteDialog"
+    >
+      <div class="paste-dialog-body">
+        <template v-if="pasteFile">
+          <div class="paste-preview">
+            <img
+              v-if="pastePreviewUrl"
+              :src="pastePreviewUrl"
+              alt="粘贴内容预览"
+              class="paste-preview-image"
+            />
+            <div v-else class="paste-preview-placeholder">
+              <el-icon :size="44" color="#c0c4cc"><Document /></el-icon>
+            </div>
+          </div>
+          <div class="paste-file-meta">
+            <span class="paste-file-name" :title="pasteFile.name">{{ pasteFile.name }}</span>
+            <span class="paste-file-size">{{ formatSize(pasteFile.size) }}</span>
+          </div>
+          <div class="paste-caption">
+            <el-input
+              v-model="chatText"
+              type="textarea"
+              :rows="2"
+              resize="none"
+              placeholder="附言（可选），随文件一并发送"
+            />
+          </div>
+        </template>
+      </div>
+      <template #footer>
+        <el-button @click="closePasteDialog">取消</el-button>
+        <el-button type="primary" :loading="sendingPaste" @click="confirmPasteSend">发送</el-button>
       </template>
     </el-dialog>
   </div>
@@ -816,14 +1047,6 @@ function isOwn(message: Message): boolean {
   color: #409eff;
 }
 
-.sender-tag {
-  padding: 0 4px;
-  line-height: 16px;
-  height: 16px;
-  font-size: 10px;
-  border-radius: 2px;
-}
-
 .message-bubble {
   max-width: 60%;
   background: #fff;
@@ -901,16 +1124,166 @@ function isOwn(message: Message): boolean {
 
 .chat-toolbar {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 10px;
   padding: 12px 16px;
   background: #fff;
   border-top: 1px solid #e4e7ed;
 }
 
+.chat-input-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.chat-text-input {
+  flex: 1;
+}
+
+.chat-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .toolbar-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
   font-size: 12px;
   color: #909399;
+}
+
+.toolbar-hint-sep {
+  color: #dcdfe6;
+}
+
+/* 文字消息气泡 */
+.text-bubble {
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* 图片消息：气泡改回白底，保证图片观感正常 */
+.message-bubble.with-image {
+  background: #fff;
+  color: #303133;
+}
+
+.message-row.own .message-bubble.with-image {
+  background: #fff;
+  color: #303133;
+}
+
+.message-row.own .message-bubble.with-image .message-time {
+  color: #909399;
+}
+
+/* 图片内联预览 */
+.image-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.inline-image {
+  display: block;
+  max-width: 240px;
+  max-height: 180px;
+  border-radius: 8px;
+  cursor: zoom-in;
+}
+
+.inline-image :deep(.el-image__inner) {
+  width: auto;
+  height: auto;
+  max-width: 240px;
+  max-height: 180px;
+  display: block;
+  border-radius: 8px;
+}
+
+.image-fallback {
+  width: 120px;
+  height: 90px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f7fa;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #909399;
+}
+
+.image-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.image-meta .file-name {
+  font-size: 12px;
+}
+
+/* 粘贴上传预览对话框 */
+.paste-dialog-body {
+  padding-top: 4px;
+}
+
+.paste-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100px;
+  background: #f5f7fa;
+  border-radius: 8px;
+  padding: 12px;
+  overflow: hidden;
+}
+
+.paste-preview-image {
+  max-width: 100%;
+  max-height: 260px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+.paste-preview-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 0;
+}
+
+.paste-file-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.paste-file-name {
+  font-size: 13px;
+  color: #303133;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.paste-file-size {
+  font-size: 12px;
+  color: #909399;
+  flex-shrink: 0;
+}
+
+.paste-caption {
+  margin-top: 12px;
 }
 
 .hidden-file-input {
