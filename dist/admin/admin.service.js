@@ -171,7 +171,6 @@ let AdminService = class AdminService {
         if (!cabinet) {
             throw new common_1.NotFoundException('内阁不存在');
         }
-        const files = await this.fileRepo.find({ where: { targetId: cabinetId } });
         const memberSessions = await this.sessionMemberRepo.find({
             where: { cabinetId },
         });
@@ -192,34 +191,22 @@ let AdminService = class AdminService {
                 .getMany();
         }
         const messageFileIds = new Set(messages.map((m) => m.fileId));
-        const messageFiles = await this.fileRepo.find({
-            where: messageFileIds.size
-                ? [...messageFileIds].map((id) => ({ id }))
-                : [{ id: 'none' }],
-        });
+        const cabinetFiles = (await this.fileRepo.find({ where: { targetId: cabinetId } })).filter((f) => !messageFileIds.has(f.id));
         const removePhysical = (storagePath) => {
             const fullPath = path.join(this.uploadBaseDir, storagePath);
             if (fs.existsSync(fullPath)) {
                 fs.unlinkSync(fullPath);
             }
         };
-        for (const f of files) {
+        for (const f of cabinetFiles) {
             removePhysical(f.storagePath);
         }
-        for (const mf of messageFiles) {
-            if (!files.some((f) => f.id === mf.id)) {
-                removePhysical(mf.storagePath);
-            }
+        if (cabinetFiles.length > 0) {
+            await this.fileRepo.delete(cabinetFiles.map((f) => ({ id: f.id })));
         }
         if (sessionIds.length > 0) {
-            await this.messageRepo.delete(sessionIds.map((id) => ({ sessionId: id })));
-            await this.sessionMemberRepo.delete(sessionIds.map((id) => ({ sessionId: id })));
-            await this.sessionRepo.delete(sessionIds.map((id) => ({ id })));
+            await this.sessionMemberRepo.delete({ sessionId: (0, typeorm_2.In)(sessionIds), cabinetId });
         }
-        if (messageFileIds.size) {
-            await this.fileRepo.delete([...messageFileIds]);
-        }
-        await this.fileRepo.delete({ targetId: cabinetId });
         await this.userRepo.delete({ cabinetId });
         await this.cabinetRepo.delete(cabinetId);
         const cabinetDir = path.join(this.uploadBaseDir, 'cabinet', cabinetId);

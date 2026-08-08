@@ -124,8 +124,8 @@ export class SessionsController {
     @Param('id') id: string,
     @CurrentUser() user: { id: string; cabinetId: string; role: UserRole },
   ) {
-    if (user.role === UserRole.ACADEMIC) {
-      throw new BadRequestException('学术组请使用解散群聊');
+    if (user.role === UserRole.ACADEMIC || user.role === UserRole.ADMIN) {
+      throw new BadRequestException('学术组与管理员请使用解散群聊');
     }
     await this.sessionsService.leaveSession(id, user.cabinetId);
     return { message: '已退出群聊' };
@@ -167,12 +167,12 @@ export class SessionsController {
       throw new BadRequestException('未提供文件');
     }
 
-    const isAcademic = user.role === UserRole.ACADEMIC;
+    const sendAsAcademic = user.role === UserRole.ACADEMIC || user.role === UserRole.ADMIN;
     const message = await this.sessionsService.sendMessage(
       id,
       file,
-      isAcademic ? null : user.cabinetId,
-      isAcademic ? MessageSenderType.ACADEMIC : MessageSenderType.CABINET,
+      sendAsAcademic ? null : user.cabinetId,
+      sendAsAcademic ? MessageSenderType.ACADEMIC : MessageSenderType.CABINET,
       user.id,
       user.role,
     );

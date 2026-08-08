@@ -22,7 +22,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -167,8 +167,6 @@ export class AdminService {
       throw new NotFoundException('内阁不存在');
     }
 
-    const files = await this.fileRepo.find({ where: { targetId: cabinetId } });
-
     // 涉及该内阁的群聊：优先按 session_members 关联查询（拉群结构），兼容旧版 cabinetA/cabinetB 字段
     const memberSessions = await this.sessionMemberRepo.find({
       where: { cabinetId },
@@ -192,11 +190,10 @@ export class AdminService {
     }
 
     const messageFileIds = new Set(messages.map((m) => m.fileId));
-    const messageFiles = await this.fileRepo.find({
-      where: messageFileIds.size
-        ? [...messageFileIds].map((id) => ({ id }))
-        : [{ id: 'none' }],
-    });
+    // 群聊消息文件保留给学术组审议；仅删除该内阁的空间文件（非消息文件）
+    const cabinetFiles = (await this.fileRepo.find({ where: { targetId: cabinetId } })).filter(
+      (f) => !messageFileIds.has(f.id),
+    );
 
     const removePhysical = (storagePath: string) => {
       const fullPath = path.join(this.uploadBaseDir, storagePath);
@@ -205,24 +202,16 @@ export class AdminService {
       }
     };
 
-    for (const f of files) {
+    for (const f of cabinetFiles) {
       removePhysical(f.storagePath);
     }
-    for (const mf of messageFiles) {
-      if (!files.some((f) => f.id === mf.id)) {
-        removePhysical(mf.storagePath);
-      }
-    }
 
+    if (cabinetFiles.length > 0) {
+      await this.fileRepo.delete(cabinetFiles.map((f) => ({ id: f.id })));
+    }
     if (sessionIds.length > 0) {
-      await this.messageRepo.delete(sessionIds.map((id) => ({ sessionId: id })));
-      await this.sessionMemberRepo.delete(sessionIds.map((id) => ({ sessionId: id })));
-      await this.sessionRepo.delete(sessionIds.map((id) => ({ id })));
+      await this.sessionMemberRepo.delete({ sessionId: In(sessionIds), cabinetId });
     }
-    if (messageFileIds.size) {
-      await this.fileRepo.delete([...messageFileIds]);
-    }
-    await this.fileRepo.delete({ targetId: cabinetId });
     await this.userRepo.delete({ cabinetId });
     await this.cabinetRepo.delete(cabinetId);
 

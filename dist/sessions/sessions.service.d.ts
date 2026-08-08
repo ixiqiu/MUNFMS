@@ -19,7 +19,7 @@ export declare class SessionsService {
     constructor(sessionRepo: Repository<Session>, sessionMemberRepo: Repository<SessionMember>, messageRepo: Repository<Message>, fileRepo: Repository<FileEntity>, cabinetRepo: Repository<Cabinet>, userRepo: Repository<User>, eventsService: EventsService);
     private ensureUploadDirs;
     private isMember;
-    private isAcademic;
+    private hasFullSessionAccess;
     migrateLegacySessions(): Promise<void>;
     createGroupSession(cabinetIds: string[], name: string | undefined, creatorCabinetId: string): Promise<Session>;
     renameSession(sessionId: string, name: string, cabinetId: string, role: UserRole): Promise<Session>;

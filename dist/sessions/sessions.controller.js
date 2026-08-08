@@ -57,8 +57,8 @@ let SessionsController = class SessionsController {
         return { message: '群聊已解散' };
     }
     async leaveSession(id, user) {
-        if (user.role === user_entity_1.UserRole.ACADEMIC) {
-            throw new common_1.BadRequestException('学术组请使用解散群聊');
+        if (user.role === user_entity_1.UserRole.ACADEMIC || user.role === user_entity_1.UserRole.ADMIN) {
+            throw new common_1.BadRequestException('学术组与管理员请使用解散群聊');
         }
         await this.sessionsService.leaveSession(id, user.cabinetId);
         return { message: '已退出群聊' };
@@ -71,8 +71,8 @@ let SessionsController = class SessionsController {
         if (!file) {
             throw new common_1.BadRequestException('未提供文件');
         }
-        const isAcademic = user.role === user_entity_1.UserRole.ACADEMIC;
-        const message = await this.sessionsService.sendMessage(id, file, isAcademic ? null : user.cabinetId, isAcademic ? message_entity_1.MessageSenderType.ACADEMIC : message_entity_1.MessageSenderType.CABINET, user.id, user.role);
+        const sendAsAcademic = user.role === user_entity_1.UserRole.ACADEMIC || user.role === user_entity_1.UserRole.ADMIN;
+        const message = await this.sessionsService.sendMessage(id, file, sendAsAcademic ? null : user.cabinetId, sendAsAcademic ? message_entity_1.MessageSenderType.ACADEMIC : message_entity_1.MessageSenderType.CABINET, user.id, user.role);
         return { message };
     }
     async downloadFile(messageId, user, res) {

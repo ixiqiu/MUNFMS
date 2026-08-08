@@ -74,6 +74,10 @@ function logout() {
             <el-icon><Setting /></el-icon>
             <span>系统管理</span>
           </el-menu-item>
+          <el-menu-item index="consult">
+            <el-icon><ChatDotRound /></el-icon>
+            <span>群聊管理</span>
+          </el-menu-item>
         </template>
         <template v-else>
           <el-menu-item index="cabinet">

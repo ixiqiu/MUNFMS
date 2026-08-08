@@ -27,6 +27,8 @@ import type { Cabinet, CabinetType, Message, Session } from '../types'
 
 const auth = useAuthStore()
 const eventsStore = useEventsStore()
+// 学术组与管理员拥有全部群聊的查看与解散权限
+const isManager = computed(() => auth.user?.role === 'ACADEMIC' || auth.user?.role === 'ADMIN')
 const myCabinetId = computed(() => auth.cabinetId)
 const myUserId = computed(() => auth.user?.id ?? '')
 
@@ -246,7 +248,7 @@ const closingSession = ref(false)
 
 async function dissolveCurrentSession() {
   const session = currentSession.value
-  if (!session || !auth.isAcademic) return
+  if (!session || !isManager) return
   try {
     await ElMessageBox.confirm(
       `解散后将删除「${groupName(session)}」的全部消息与文件，且无法恢复。确定解散吗？`,
@@ -271,7 +273,7 @@ async function dissolveCurrentSession() {
 
 async function leaveCurrentSession() {
   const session = currentSession.value
-  if (!session || auth.isAcademic) return
+  if (!session || isManager) return
   try {
     await ElMessageBox.confirm(
       `退出后你将不再看到「${groupName(session)}」的群聊与消息，群聊及其中文件将保留给学术组审议。确定退出吗？`,
@@ -387,7 +389,7 @@ function isOwn(message: Message): boolean {
         <div class="session-panel-header">
           <span class="session-panel-title">磋商群聊</span>
           <el-button
-            v-if="!auth.isAcademic"
+            v-if="!isManager"
             type="primary"
             size="small"
             :icon="Plus"
@@ -424,7 +426,7 @@ function isOwn(message: Message): boolean {
         </div>
         <div v-else class="session-empty">
           <el-empty
-            :description="auth.isAcademic ? '暂无群聊' : '暂无群聊，点击新建群发起磋商'"
+            :description="isManager ? '暂无群聊' : '暂无群聊，点击新建群发起磋商'"
             :image-size="80"
           />
         </div>
@@ -440,7 +442,7 @@ function isOwn(message: Message): boolean {
               </span>
               <span class="chat-target-type">{{ currentSession.members.length }} 人</span>
               <el-button
-                v-if="!auth.isAcademic"
+                v-if="!isManager"
                 link
                 type="primary"
                 size="small"
@@ -450,7 +452,7 @@ function isOwn(message: Message): boolean {
                 改群名
               </el-button>
               <el-button
-                v-if="!auth.isAcademic"
+                v-if="!isManager"
                 link
                 type="danger"
                 size="small"
@@ -461,7 +463,7 @@ function isOwn(message: Message): boolean {
               </el-button>
               <template v-else>
                 <el-tag size="small" type="info" class="academic-header-tag">
-                  学团身份 · 全部群聊可见
+                  {{ auth.user?.role === 'ADMIN' ? '管理员' : '学团身份' }} · 全部群聊可见
                 </el-tag>
                 <el-button
                   link
@@ -475,7 +477,7 @@ function isOwn(message: Message): boolean {
               </template>
             </div>
             <el-button
-              v-if="!auth.isAcademic"
+              v-if="!isManager"
               type="primary"
               size="small"
               :icon="Plus"
