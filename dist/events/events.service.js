@@ -16,6 +16,20 @@ let EventsService = class EventsService {
     constructor() {
         this.event$ = new rxjs_1.Subject();
         this.tickets = new Map();
+        this.activeConnections = new Map();
+    }
+    connectionOpened(userId) {
+        this.activeConnections.set(userId, (this.activeConnections.get(userId) ?? 0) + 1);
+    }
+    connectionClosed(userId) {
+        const n = (this.activeConnections.get(userId) ?? 1) - 1;
+        if (n <= 0)
+            this.activeConnections.delete(userId);
+        else
+            this.activeConnections.set(userId, n);
+    }
+    isConnected(userId) {
+        return (this.activeConnections.get(userId) ?? 0) > 0;
     }
     issueTicket(userId) {
         const ticket = (0, crypto_1.randomBytes)(32).toString('hex');

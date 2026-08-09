@@ -20,4 +20,6 @@ __exportStar(require("./file.entity"), exports);
 __exportStar(require("./session.entity"), exports);
 __exportStar(require("./session-member.entity"), exports);
 __exportStar(require("./message.entity"), exports);
+__exportStar(require("./notification-setting.entity"), exports);
+__exportStar(require("./user-session-dnd.entity"), exports);
 //# sourceMappingURL=index.js.map

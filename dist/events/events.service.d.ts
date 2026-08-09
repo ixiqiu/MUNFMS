@@ -8,12 +8,18 @@ export interface SseEvent {
     targetId?: string | null;
     sessionId?: string;
     actorId?: string;
+    fileName?: string;
+    senderCabinetId?: string | null;
     ts: number;
 }
 export declare class EventsService implements OnModuleInit, OnModuleDestroy {
     private readonly event$;
     private readonly tickets;
+    private readonly activeConnections;
     private cleanupTimer;
+    connectionOpened(userId: string): void;
+    connectionClosed(userId: string): void;
+    isConnected(userId: string): boolean;
     issueTicket(userId: string): string;
     consumeTicket(ticket: string): string | null;
     emit(event: SseEvent): void;

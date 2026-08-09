@@ -17,12 +17,15 @@ const cabinets_module_1 = require("./cabinets/cabinets.module");
 const admin_module_1 = require("./admin/admin.module");
 const license_module_1 = require("./license/license.module");
 const events_module_1 = require("./events/events.module");
+const notifications_module_1 = require("./notifications/notifications.module");
 const cabinet_entity_1 = require("./entities/cabinet.entity");
 const user_entity_1 = require("./entities/user.entity");
 const file_entity_1 = require("./entities/file.entity");
 const session_entity_1 = require("./entities/session.entity");
 const session_member_entity_1 = require("./entities/session-member.entity");
 const message_entity_1 = require("./entities/message.entity");
+const notification_setting_entity_1 = require("./entities/notification-setting.entity");
+const user_session_dnd_entity_1 = require("./entities/user-session-dnd.entity");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -46,7 +49,7 @@ exports.AppModule = AppModule = __decorate([
                             username: configService.get('DB_USERNAME', 'root'),
                             password: configService.get('DB_PASSWORD', ''),
                             database: configService.get('DB_DATABASE', 'mun_files'),
-                            entities: [cabinet_entity_1.Cabinet, user_entity_1.User, file_entity_1.FileEntity, session_entity_1.Session, session_member_entity_1.SessionMember, message_entity_1.Message],
+                            entities: [cabinet_entity_1.Cabinet, user_entity_1.User, file_entity_1.FileEntity, session_entity_1.Session, session_member_entity_1.SessionMember, message_entity_1.Message, notification_setting_entity_1.NotificationSetting, user_session_dnd_entity_1.UserSessionDnd],
                             synchronize: true,
                             logging: configService.get('DB_LOGGING', false),
                         };
@@ -55,7 +58,7 @@ exports.AppModule = AppModule = __decorate([
                         return {
                             type: 'sqlite',
                             database: configService.get('SQLITE_DB_PATH', 'dev.db'),
-                            entities: [cabinet_entity_1.Cabinet, user_entity_1.User, file_entity_1.FileEntity, session_entity_1.Session, session_member_entity_1.SessionMember, message_entity_1.Message],
+                            entities: [cabinet_entity_1.Cabinet, user_entity_1.User, file_entity_1.FileEntity, session_entity_1.Session, session_member_entity_1.SessionMember, message_entity_1.Message, notification_setting_entity_1.NotificationSetting, user_session_dnd_entity_1.UserSessionDnd],
                             synchronize: true,
                             logging: configService.get('DB_LOGGING', false),
                         };
@@ -69,6 +72,7 @@ exports.AppModule = AppModule = __decorate([
             admin_module_1.AdminModule,
             license_module_1.LicenseModule,
             events_module_1.EventsModule,
+            notifications_module_1.NotificationsModule,
         ],
     })
 ], AppModule);

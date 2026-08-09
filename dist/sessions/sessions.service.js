@@ -360,6 +360,7 @@ let SessionsService = class SessionsService {
                 type: 'message.new',
                 sessionId,
                 actorId: uploaderId,
+                senderCabinetId: senderCabinetId ?? null,
                 ts: Date.now(),
             });
             return savedMessage;
@@ -426,6 +427,7 @@ let SessionsService = class SessionsService {
                 type: 'message.new',
                 sessionId,
                 actorId: user.id,
+                senderCabinetId: user.cabinetId,
                 ts: Date.now(),
             });
             return savedMessage;

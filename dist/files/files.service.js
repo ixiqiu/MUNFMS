@@ -124,6 +124,7 @@ let FilesService = class FilesService {
                 spaceType,
                 targetId,
                 actorId: user.id,
+                fileName: savedFile.fileName,
                 ts: Date.now(),
             });
             return savedFile;
@@ -241,6 +242,7 @@ let FilesService = class FilesService {
                 spaceType: file_entity_1.SpaceType.PUBLIC,
                 targetId: 'PUBLIC',
                 actorId: user.id,
+                fileName: savedFile.fileName,
                 ts: Date.now(),
             });
             return savedFile;
