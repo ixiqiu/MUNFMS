@@ -16,17 +16,16 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-export * from './cabinet.entity';
-export * from './user.entity';
-export * from './file.entity';
-export * from './session.entity';
-export * from './session-member.entity';
-export * from './message.entity';
-export * from './notification-setting.entity';
-export * from './user-session-dnd.entity';
-export * from './conference-period.entity';
-export * from './global-state.entity';
-export * from './timeline-entry.entity';
-export * from './directive-type.entity';
-export * from './directive.entity';
-export * from './asym-message.entity';
+import { Entity, PrimaryColumn, Column, UpdateDateColumn } from 'typeorm';
+
+@Entity('global_state')
+export class GlobalState {
+  @PrimaryColumn({ default: '1' })
+  id: string; // 固定单行（懒创建，镜像 NotificationSetting 模式）
+
+  @Column({ nullable: true })
+  currentPeriodId: string | null; // 手动 FK，不建关系
+
+  @UpdateDateColumn()
+  updatedAt: Date;
+}

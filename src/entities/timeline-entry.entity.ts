@@ -16,43 +16,36 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Index } from 'typeorm';
 
-export enum SpaceType {
-  CABINET = 'CABINET',
-  PUBLIC = 'PUBLIC',
-  CONFERENCE = 'CONFERENCE',
-  CONSULT = 'CONSULT',
-  TIMELINE = 'TIMELINE',
-  DIRECTIVE = 'DIRECTIVE',
-  ASYMMETRIC = 'ASYMMETRIC',
+export enum TimelineEntryType {
+  SITUATION = 'SITUATION',
+  NEWS = 'NEWS',
 }
 
-@Entity('files')
-export class FileEntity {
+@Entity('timeline_entries')
+@Index(['periodId', 'type', 'sequence'], { unique: true }) // 编号并发兜底
+export class TimelineEntry {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column()
-  fileName: string; // 原始文件名
+  periodId: string; // 归属会期（自动=当前，前端不可改）
 
-  @Column()
-  storagePath: string; // 本地物理相对路径 (如: cabinet/uuid_xxx.pdf)
+  @Column({ type: 'simple-enum', enum: TimelineEntryType })
+  type: TimelineEntryType;
 
-  @Column({
-    type: 'simple-enum',
-    enum: SpaceType,
-  })
-  spaceType: SpaceType;
+  @Column({ type: 'varchar', nullable: true })
+  newsSource: string | null; // 仅新闻
 
-  @Column()
-  uploaderId: string; // 上传者 User ID
+  @Column({ type: 'text', nullable: true })
+  content: string | null; // 可与附件二选一
 
   @Column({ nullable: true })
-  targetId: string; // 归属目标 ID (如内阁ID，或公共/会议空间的全局标识)
+  fileId: string | null; // 附件（FileEntity，SpaceType=TIMELINE）
 
-  @Column({ default: false })
-  isFromConference: boolean; // 标记是否由会议空间一键复制而来
+  @Column()
+  sequence: number; // 该会期该类型内序号（MAX+1，删除不回填）
 
   @CreateDateColumn()
   createdAt: Date;

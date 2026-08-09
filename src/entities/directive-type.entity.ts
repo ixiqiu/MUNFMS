@@ -16,17 +16,22 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-export * from './cabinet.entity';
-export * from './user.entity';
-export * from './file.entity';
-export * from './session.entity';
-export * from './session-member.entity';
-export * from './message.entity';
-export * from './notification-setting.entity';
-export * from './user-session-dnd.entity';
-export * from './conference-period.entity';
-export * from './global-state.entity';
-export * from './timeline-entry.entity';
-export * from './directive-type.entity';
-export * from './directive.entity';
-export * from './asym-message.entity';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
+
+@Entity('directive_types')
+export class DirectiveType {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column({ type: 'varchar', unique: true })
+  name: string;
+
+  @Column({ default: false })
+  isPreset: boolean; // 6 预设标记（仅展示用）
+
+  @Column({ default: 0 })
+  sortOrder: number; // 下拉顺序
+
+  @CreateDateColumn()
+  createdAt: Date;
+}

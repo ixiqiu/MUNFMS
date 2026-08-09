@@ -16,17 +16,19 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-export * from './cabinet.entity';
-export * from './user.entity';
-export * from './file.entity';
-export * from './session.entity';
-export * from './session-member.entity';
-export * from './message.entity';
-export * from './notification-setting.entity';
-export * from './user-session-dnd.entity';
-export * from './conference-period.entity';
-export * from './global-state.entity';
-export * from './timeline-entry.entity';
-export * from './directive-type.entity';
-export * from './directive.entity';
-export * from './asym-message.entity';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
+
+@Entity('conference_periods')
+export class ConferencePeriod {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column({ unique: true })
+  number: number; // 会期编号，唯一
+
+  @Column({ type: 'varchar', nullable: true })
+  name: string | null; // 会期名称（选填）
+
+  @CreateDateColumn()
+  createdAt: Date;
+}

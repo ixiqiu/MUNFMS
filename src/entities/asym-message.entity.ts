@@ -17,42 +17,30 @@
  */
 
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
+import { MessageSenderType } from './message.entity';
 
-export enum SpaceType {
-  CABINET = 'CABINET',
-  PUBLIC = 'PUBLIC',
-  CONFERENCE = 'CONFERENCE',
-  CONSULT = 'CONSULT',
-  TIMELINE = 'TIMELINE',
-  DIRECTIVE = 'DIRECTIVE',
-  ASYMMETRIC = 'ASYMMETRIC',
-}
-
-@Entity('files')
-export class FileEntity {
+@Entity('asym_messages')
+export class AsymMessage {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column()
-  fileName: string; // 原始文件名
+  cabinetId: string; // 对话方内阁
+
+  @Column({ type: 'simple-enum', enum: MessageSenderType, default: MessageSenderType.CABINET })
+  senderType: MessageSenderType; // 复用现有枚举 CABINET/ACADEMIC
 
   @Column()
-  storagePath: string; // 本地物理相对路径 (如: cabinet/uuid_xxx.pdf)
+  senderUserId: string;
 
-  @Column({
-    type: 'simple-enum',
-    enum: SpaceType,
-  })
-  spaceType: SpaceType;
-
-  @Column()
-  uploaderId: string; // 上传者 User ID
+  @Column({ type: 'text', nullable: true })
+  content: string | null;
 
   @Column({ nullable: true })
-  targetId: string; // 归属目标 ID (如内阁ID，或公共/会议空间的全局标识)
+  fileId: string | null; // 附件（SpaceType=ASYMMETRIC）
 
   @Column({ default: false })
-  isFromConference: boolean; // 标记是否由会议空间一键复制而来
+  isRead: boolean; // 对方已读（简化：同内阁成员共享）
 
   @CreateDateColumn()
   createdAt: Date;
