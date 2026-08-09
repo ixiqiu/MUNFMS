@@ -302,6 +302,42 @@ export const useNotificationsStore = defineStore('notifications', () => {
       return
     }
 
+    if (event.type === 'timeline.changed') {
+      if (authStore.user?.role === 'ADMIN') return
+      showNotification('危机时间线更新', event.entryType === 'SITUATION' ? '新的局势更新已发布' : '新的新闻已发布', 'mun-timeline')
+      return
+    }
+
+    if (event.type === 'directive.new') {
+      if (!authStore.isAcademic) return
+      showNotification('新指令提交', '有代表提交了新的指令', 'mun-directive-new')
+      return
+    }
+
+    if (event.type === 'directive.changed') {
+      if (authStore.user?.role !== 'DELEGATE') return
+      if (event.targetId !== authStore.cabinetId) return
+      showNotification('指令已审核', event.status === 'ACCEPTED' ? '您的指令已被接受' : '您的指令已被驳回', `mun-directive-status-${event.ts}`)
+      return
+    }
+
+    if (event.type === 'asym.message.new') {
+      if (event.senderType === 'CABINET' && authStore.isAcademic) {
+        showNotification('内阁消息', '收到一条来自内阁的新消息', `mun-asym-${event.ts}`)
+        return
+      }
+      if (event.senderType === 'ACADEMIC' && authStore.user?.role === 'DELEGATE' && event.targetId === authStore.cabinetId) {
+        showNotification('学术组消息', '学术组发来一条消息', `mun-asym-${event.ts}`)
+        return
+      }
+      return
+    }
+
+    if (event.type === 'period.changed') {
+      // 会期切换：仅由页面订阅刷新展示，不弹浏览器通知
+      return
+    }
+
     if (event.type === 'session.changed') {
       void refreshSessions()
     }
