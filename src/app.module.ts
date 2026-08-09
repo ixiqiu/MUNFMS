@@ -35,6 +35,16 @@ import { SessionMember } from './entities/session-member.entity';
 import { Message } from './entities/message.entity';
 import { NotificationSetting } from './entities/notification-setting.entity';
 import { UserSessionDnd } from './entities/user-session-dnd.entity';
+import { ConferencePeriod } from './entities/conference-period.entity';
+import { GlobalState } from './entities/global-state.entity';
+import { TimelineEntry } from './entities/timeline-entry.entity';
+import { DirectiveType } from './entities/directive-type.entity';
+import { Directive } from './entities/directive.entity';
+import { AsymMessage } from './entities/asym-message.entity';
+import { PeriodsModule } from './periods/periods.module';
+import { TimelineModule } from './timeline/timeline.module';
+import { DirectivesModule } from './directives/directives.module';
+import { AsymmetricModule } from './asymmetric/asymmetric.module';
 
 @Module({
   imports: [
@@ -59,7 +69,7 @@ import { UserSessionDnd } from './entities/user-session-dnd.entity';
             username: configService.get<string>('DB_USERNAME', 'root'),
             password: configService.get<string>('DB_PASSWORD', ''),
             database: configService.get<string>('DB_DATABASE', 'mun_files'),
-            entities: [Cabinet, User, FileEntity, Session, SessionMember, Message, NotificationSetting, UserSessionDnd],
+            entities: [Cabinet, User, FileEntity, Session, SessionMember, Message, NotificationSetting, UserSessionDnd, ConferencePeriod, GlobalState, TimelineEntry, DirectiveType, Directive, AsymMessage],
             synchronize: true, // 生产环境应设为 false
             logging: configService.get<boolean>('DB_LOGGING', false),
           };
@@ -68,7 +78,7 @@ import { UserSessionDnd } from './entities/user-session-dnd.entity';
           return {
             type: 'sqlite',
             database: configService.get<string>('SQLITE_DB_PATH', 'dev.db'),
-            entities: [Cabinet, User, FileEntity, Session, SessionMember, Message, NotificationSetting, UserSessionDnd],
+            entities: [Cabinet, User, FileEntity, Session, SessionMember, Message, NotificationSetting, UserSessionDnd, ConferencePeriod, GlobalState, TimelineEntry, DirectiveType, Directive, AsymMessage],
             synchronize: true,
             logging: configService.get<boolean>('DB_LOGGING', false),
           };
@@ -85,6 +95,10 @@ import { UserSessionDnd } from './entities/user-session-dnd.entity';
     LicenseModule,
     EventsModule,
     NotificationsModule,
+    PeriodsModule,
+    TimelineModule,
+    DirectivesModule,
+    AsymmetricModule,
   ],
 })
 export class AppModule {}
