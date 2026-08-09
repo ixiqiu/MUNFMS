@@ -17,6 +17,9 @@ var SpaceType;
     SpaceType["PUBLIC"] = "PUBLIC";
     SpaceType["CONFERENCE"] = "CONFERENCE";
     SpaceType["CONSULT"] = "CONSULT";
+    SpaceType["TIMELINE"] = "TIMELINE";
+    SpaceType["DIRECTIVE"] = "DIRECTIVE";
+    SpaceType["ASYMMETRIC"] = "ASYMMETRIC";
 })(SpaceType || (exports.SpaceType = SpaceType = {}));
 let FileEntity = class FileEntity {
 };

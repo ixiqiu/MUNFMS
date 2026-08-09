@@ -25,7 +25,12 @@ export type SseEventType =
   | 'file.changed'
   | 'session.changed'
   | 'message.new'
-  | 'cabinet.deleted';
+  | 'cabinet.deleted'
+  | 'period.changed'
+  | 'timeline.changed'
+  | 'directive.new'
+  | 'directive.changed'
+  | 'asym.message.new';
 
 export interface SseEvent {
   type: SseEventType;
@@ -35,6 +40,9 @@ export interface SseEvent {
   actorId?: string;
   fileName?: string;
   senderCabinetId?: string | null;
+  entryType?: 'SITUATION' | 'NEWS';
+  status?: 'ACCEPTED' | 'REJECTED';
+  senderType?: 'CABINET' | 'ACADEMIC';
   ts: number;
 }
 

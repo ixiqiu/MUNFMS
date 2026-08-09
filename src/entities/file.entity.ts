@@ -23,6 +23,9 @@ export enum SpaceType {
   PUBLIC = 'PUBLIC',
   CONFERENCE = 'CONFERENCE',
   CONSULT = 'CONSULT',
+  TIMELINE = 'TIMELINE',
+  DIRECTIVE = 'DIRECTIVE',
+  ASYMMETRIC = 'ASYMMETRIC',
 }
 
 @Entity('files')

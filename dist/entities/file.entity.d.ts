@@ -2,7 +2,10 @@ export declare enum SpaceType {
     CABINET = "CABINET",
     PUBLIC = "PUBLIC",
     CONFERENCE = "CONFERENCE",
-    CONSULT = "CONSULT"
+    CONSULT = "CONSULT",
+    TIMELINE = "TIMELINE",
+    DIRECTIVE = "DIRECTIVE",
+    ASYMMETRIC = "ASYMMETRIC"
 }
 export declare class FileEntity {
     id: string;

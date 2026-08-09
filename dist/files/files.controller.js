@@ -15,24 +15,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.FilesController = void 0;
 const common_1 = require("@nestjs/common");
 const platform_express_1 = require("@nestjs/platform-express");
-const multer_1 = require("multer");
-const path_1 = require("path");
 const files_service_1 = require("./files.service");
 const space_permission_guard_1 = require("../common/guards/space-permission.guard");
 const current_user_decorator_1 = require("../common/decorators/current-user.decorator");
+const upload_util_1 = require("../common/upload.util");
+const download_util_1 = require("../common/download.util");
 const file_entity_1 = require("../entities/file.entity");
-const uploadOptions = {
-    defParamCharset: 'utf8',
-    storage: (0, multer_1.diskStorage)({
-        destination: './uploads/temp',
-        filename: (req, file, callback) => {
-            const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-            const ext = (0, path_1.extname)(file.originalname);
-            callback(null, `${uniqueSuffix}${ext}`);
-        },
-    }),
-    limits: { fileSize: 50 * 1024 * 1024 },
-};
 let FilesController = class FilesController {
     constructor(filesService) {
         this.filesService = filesService;
@@ -50,8 +38,7 @@ let FilesController = class FilesController {
     }
     async downloadFile(id, user, res) {
         const { readStream, fileName } = await this.filesService.downloadFile(id, user);
-        const asciiFallback = fileName.replace(/[^\x20-\x7E]/g, '_').replace(/"/g, '');
-        res.setHeader('Content-Disposition', `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(fileName)}`);
+        (0, download_util_1.setContentDisposition)(res, fileName);
         return new common_1.StreamableFile(readStream);
     }
     async publishToPublic(id, user) {
@@ -66,7 +53,7 @@ let FilesController = class FilesController {
 exports.FilesController = FilesController;
 __decorate([
     (0, common_1.Post)('upload'),
-    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file', uploadOptions)),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file', (0, upload_util_1.createUploadOptions)('./uploads/temp', 50 * 1024 * 1024))),
     __param(0, (0, common_1.UploadedFile)()),
     __param(1, (0, common_1.Query)('space')),
     __param(2, (0, current_user_decorator_1.CurrentUser)()),

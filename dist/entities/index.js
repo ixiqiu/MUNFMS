@@ -22,4 +22,10 @@ __exportStar(require("./session-member.entity"), exports);
 __exportStar(require("./message.entity"), exports);
 __exportStar(require("./notification-setting.entity"), exports);
 __exportStar(require("./user-session-dnd.entity"), exports);
+__exportStar(require("./conference-period.entity"), exports);
+__exportStar(require("./global-state.entity"), exports);
+__exportStar(require("./timeline-entry.entity"), exports);
+__exportStar(require("./directive-type.entity"), exports);
+__exportStar(require("./directive.entity"), exports);
+__exportStar(require("./asym-message.entity"), exports);
 //# sourceMappingURL=index.js.map

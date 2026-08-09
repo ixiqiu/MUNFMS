@@ -15,24 +15,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.SessionsController = void 0;
 const common_1 = require("@nestjs/common");
 const platform_express_1 = require("@nestjs/platform-express");
-const multer_1 = require("multer");
-const path_1 = require("path");
 const sessions_service_1 = require("./sessions.service");
 const current_user_decorator_1 = require("../common/decorators/current-user.decorator");
+const upload_util_1 = require("../common/upload.util");
+const download_util_1 = require("../common/download.util");
 const user_entity_1 = require("../entities/user.entity");
 const message_entity_1 = require("../entities/message.entity");
 const jwt_auth_guard_1 = require("../common/guards/jwt-auth.guard");
-const uploadOptions = {
-    defParamCharset: 'utf8',
-    storage: (0, multer_1.diskStorage)({
-        destination: './uploads/temp',
-        filename: (req, file, callback) => {
-            const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-            const ext = (0, path_1.extname)(file.originalname);
-            callback(null, `${uniqueSuffix}${ext}`);
-        },
-    }),
-};
 let SessionsController = class SessionsController {
     constructor(sessionsService) {
         this.sessionsService = sessionsService;
@@ -83,10 +72,9 @@ let SessionsController = class SessionsController {
         return { message };
     }
     async downloadFile(messageId, user, res) {
-        const { readStream, fileName, mimeType } = await this.sessionsService.downloadFile(messageId, user.cabinetId, user.role);
-        res.setHeader('Content-Type', mimeType);
-        const asciiFallback = fileName.replace(/[^\x20-\x7E]/g, '_').replace(/"/g, '');
-        res.setHeader('Content-Disposition', `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(fileName)}`);
+        const { readStream, fileName } = await this.sessionsService.downloadFile(messageId, user.cabinetId, user.role);
+        res.setHeader('Content-Type', (0, download_util_1.getMimeType)(fileName));
+        (0, download_util_1.setContentDisposition)(res, fileName);
         return new common_1.StreamableFile(readStream);
     }
 };
@@ -141,7 +129,7 @@ __decorate([
 ], SessionsController.prototype, "getMessages", null);
 __decorate([
     (0, common_1.Post)(':id/messages'),
-    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file', uploadOptions)),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file', (0, upload_util_1.createUploadOptions)('./uploads/temp'))),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.UploadedFile)()),
     __param(2, (0, common_1.Body)('content')),

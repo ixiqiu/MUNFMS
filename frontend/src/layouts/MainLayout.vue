@@ -22,6 +22,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useEventsStore } from '../stores/events'
 import { useNotificationsStore } from '../stores/notifications'
+import { periodsApi } from '../api/periods'
+import type { ConferencePeriod } from '../types'
 
 const route = useRoute()
 const router = useRouter()
@@ -52,6 +54,11 @@ const spaceTitle = computed(() => {
     academic: { title: '通知总控', subtitle: '代表通知状态一览' },
     admin: { title: '系统管理', subtitle: '账户与内阁管理' },
     about: { title: '关于', subtitle: '项目信息与许可证' },
+    periods: { title: '会期管理', subtitle: '会议会期与全局当前会期设置' },
+    timeline: { title: '局势时间线', subtitle: '危机局势更新与新闻动态' },
+    directives: { title: '指令提交', subtitle: '指令提交与审核' },
+    asym: { title: '不对称消息', subtitle: '与学术组的一对一私密通道' },
+    'directive-types': { title: '指令类型管理', subtitle: '指令类型的新增与删除' },
   }
   return map[route.name as string] || { title: '', subtitle: '' }
 })
@@ -69,16 +76,41 @@ const showFileListBanner = computed(
     ['cabinet', 'public', 'conference'].includes(route.name as string),
 )
 
+// 当前会期展示（无会期时隐藏）
+const currentPeriod = ref<ConferencePeriod | null>(null)
+
+const currentPeriodLabel = computed(() => {
+  const p = currentPeriod.value
+  if (!p) return ''
+  return `当前会期：第${p.number}会期${p.name ?? ''}`
+})
+
+async function refreshCurrentPeriod() {
+  try {
+    const res = await periodsApi.getCurrent()
+    currentPeriod.value = res.period
+  } catch {
+    // 错误已由 axios 拦截器统一提示
+  }
+}
+
+let unsubscribePeriod: (() => void) | undefined
+
 onMounted(() => {
   updateIsMobile()
   window.addEventListener('resize', updateIsMobile)
   eventsStore.init()
   notificationsStore.init()
+  void refreshCurrentPeriod()
+  unsubscribePeriod = eventsStore.subscribe((e) => {
+    if (e.type === 'period.changed') void refreshCurrentPeriod()
+  })
 })
 onUnmounted(() => {
   window.removeEventListener('resize', updateIsMobile)
   eventsStore.destroy()
   notificationsStore.destroy()
+  unsubscribePeriod?.()
 })
 
 function logout() {
@@ -115,8 +147,16 @@ function handleToggleEnabled(value: string | number | boolean) {
             <el-icon><ChatDotRound /></el-icon>
             <span>群聊管理</span>
           </el-menu-item>
+          <el-menu-item index="directive-types">
+            <el-icon><PriceTag /></el-icon>
+            <span>指令类型管理</span>
+          </el-menu-item>
         </template>
         <template v-else>
+          <el-menu-item v-if="auth.isAcademic" index="periods">
+            <el-icon><Calendar /></el-icon>
+            <span>会期管理</span>
+          </el-menu-item>
           <el-menu-item index="cabinet">
             <el-icon><FolderOpened /></el-icon>
             <span>内阁空间</span>
@@ -132,6 +172,18 @@ function handleToggleEnabled(value: string | number | boolean) {
           <el-menu-item index="consult">
             <el-icon><ChatDotRound /></el-icon>
             <span>磋商空间</span>
+          </el-menu-item>
+          <el-menu-item index="timeline">
+            <el-icon><Clock /></el-icon>
+            <span>局势时间线</span>
+          </el-menu-item>
+          <el-menu-item index="directives">
+            <el-icon><Memo /></el-icon>
+            <span>指令提交</span>
+          </el-menu-item>
+          <el-menu-item index="asym">
+            <el-icon><ChatLineRound /></el-icon>
+            <span>不对称消息</span>
           </el-menu-item>
           <el-menu-item v-if="auth.isAcademic" index="academic">
             <el-icon><Bell /></el-icon>
@@ -160,27 +212,32 @@ function handleToggleEnabled(value: string | number | boolean) {
           <div class="header-title">{{ spaceTitle.title }}</div>
           <div class="header-subtitle">{{ spaceTitle.subtitle }}</div>
         </div>
-        <el-dropdown @command="handleCommand">
-          <div class="user-info">
-            <el-avatar :size="32" class="avatar">
-              {{ auth.user?.name?.charAt(0)?.toUpperCase() }}
-            </el-avatar>
-            <div class="user-text">
-              <div class="user-name">{{ auth.user?.name }}</div>
-              <div class="user-role">
-                {{ auth.user?.cabinet?.name || '' }} ·
-                {{ roleLabel }}
+        <div class="header-right">
+          <el-tag v-if="currentPeriodLabel" type="info" effect="plain" class="period-tag">
+            {{ currentPeriodLabel }}
+          </el-tag>
+          <el-dropdown @command="handleCommand">
+            <div class="user-info">
+              <el-avatar :size="32" class="avatar">
+                {{ auth.user?.name?.charAt(0)?.toUpperCase() }}
+              </el-avatar>
+              <div class="user-text">
+                <div class="user-name">{{ auth.user?.name }}</div>
+                <div class="user-role">
+                  {{ auth.user?.cabinet?.name || '' }} ·
+                  {{ roleLabel }}
+                </div>
               </div>
+              <el-icon><ArrowDown /></el-icon>
             </div>
-            <el-icon><ArrowDown /></el-icon>
-          </div>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item command="notif-settings">通知设置</el-dropdown-item>
-              <el-dropdown-item command="logout">退出登录</el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="notif-settings">通知设置</el-dropdown-item>
+                <el-dropdown-item command="logout">退出登录</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
       </el-header>
 
       <el-main class="main">
@@ -220,8 +277,16 @@ function handleToggleEnabled(value: string | number | boolean) {
             <el-icon><ChatDotRound /></el-icon>
             <span>群聊管理</span>
           </el-menu-item>
+          <el-menu-item index="directive-types">
+            <el-icon><PriceTag /></el-icon>
+            <span>指令类型管理</span>
+          </el-menu-item>
         </template>
         <template v-else>
+          <el-menu-item v-if="auth.isAcademic" index="periods">
+            <el-icon><Calendar /></el-icon>
+            <span>会期管理</span>
+          </el-menu-item>
           <el-menu-item index="cabinet">
             <el-icon><FolderOpened /></el-icon>
             <span>内阁空间</span>
@@ -237,6 +302,18 @@ function handleToggleEnabled(value: string | number | boolean) {
           <el-menu-item index="consult">
             <el-icon><ChatDotRound /></el-icon>
             <span>磋商空间</span>
+          </el-menu-item>
+          <el-menu-item index="timeline">
+            <el-icon><Clock /></el-icon>
+            <span>局势时间线</span>
+          </el-menu-item>
+          <el-menu-item index="directives">
+            <el-icon><Memo /></el-icon>
+            <span>指令提交</span>
+          </el-menu-item>
+          <el-menu-item index="asym">
+            <el-icon><ChatLineRound /></el-icon>
+            <span>不对称消息</span>
           </el-menu-item>
           <el-menu-item v-if="auth.isAcademic" index="academic">
             <el-icon><Bell /></el-icon>
@@ -349,6 +426,17 @@ function handleToggleEnabled(value: string | number | boolean) {
   outline: none;
 }
 
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.period-tag {
+  flex-shrink: 0;
+  font-size: 12px;
+}
+
 .avatar {
   background: #409eff;
   color: #fff;
@@ -441,6 +529,10 @@ function handleToggleEnabled(value: string | number | boolean) {
     padding: 0 12px;
     justify-content: flex-start;
     gap: 10px;
+  }
+
+  .header-right {
+    margin-left: auto;
   }
 
   .header :deep(.el-dropdown) {
