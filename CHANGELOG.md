@@ -9,6 +9,26 @@
 
 暂无待发布变更。
 
+## [v0.5.0] - 2026-08-10
+
+### 新增
+
+- **会期管理**：全局当前会期状态（学术组切换、代表只读展示），支持下拉切换 /「下一个会期」自动递增 / 手动输入编号（名称选填），切换即时生效；作为危机时间线与指令提交的归属依据
+- **危机时间线**：学术组发布局势更新与新闻（自动编号 `会期.序号`，局势更新与新闻各自独立编号、删除不回填；内容与附件至少其一，图片内联展示），代表按会期 / 类型组合筛选查看；SSE 实时推送 + 浏览器通知
+- **指令提交**：代表按指令类型提交指令（自动编号 `[内阁名][指令类型][会期.序号]`，内容必填、附件可选、等待中可删除且编号不回填），学术组审核（接受 / 驳回不可逆 + 可选文本 / 图片 / 文件答复），管理员管理指令类型（6 种预设 + 自定义增删；删除后已提交指令保留类型名称快照）
+- **不对称消息**：学术组与单个内阁之间的一对一私密沟通通道（功能与磋商空间一致：文字、图片内联、粘贴即上传、附件下载），同内阁成员共享对话，管理员不可见
+- **指令审核内阁筛选**：学术组审核指令时可按会期 / 指令类型 / 内阁组合筛选
+
+### 其他
+
+- 新增 6 张表（`conference_periods`、`global_state`、`timeline_entries`、`directive_types`、`directives`、`asym_messages`），由 `synchronize` 自动同步；`files` 表 `SpaceType` 新增 `TIMELINE` / `DIRECTIVE` / `ASYMMETRIC`
+- 共享上传 / 下载工具抽取至 `src/common`（`createUploadOptions` / `setContentDisposition` / `getMimeType`）
+- 前端构建产物随版本重建
+
+### 升级说明
+
+直接拉取最新代码（或覆盖 `dist/` 与 `frontend/dist/`）后重启服务即可。数据库自动建表，无需手动迁移；升级前建议备份 `dev.db`。
+
 ## [v0.4.0] - 2026-08-09
 
 ### 新增
@@ -162,7 +182,8 @@
 - 中文文件名上传/下载支持（RFC 5987 响应头 + UTF-8 解析）。
 - SQLite（本地开发）↔ MariaDB（生产）双数据库支持。
 
-[Unreleased]: https://git.ssug.top/xiqiu/MUNFMS/compare/v0.4.0...HEAD
+[Unreleased]: https://git.ssug.top/xiqiu/MUNFMS/compare/v0.5.0...HEAD
+[v0.5.0]: https://git.ssug.top/xiqiu/MUNFMS/compare/v0.4.0...v0.5.0
 [v0.4.0]: https://git.ssug.top/xiqiu/MUNFMS/compare/v0.3.0...v0.4.0
 [v0.3.0]: https://git.ssug.top/xiqiu/MUNFMS/compare/v0.2.2...v0.3.0
 [v0.2.2]: https://git.ssug.top/xiqiu/MUNFMS/compare/v0.2.1...v0.2.2
