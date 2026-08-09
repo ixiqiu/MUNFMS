@@ -149,6 +149,13 @@ export const useNotificationsStore = defineStore('notifications', () => {
     }
   }
 
+  // —— 页面恢复可见时立即补一次轮询检测（轮询模式下避免等满 15s 周期；SSE 模式事件实时补发，无需检测） ——
+  function handleVisibilityChange(): void {
+    if (document.visibilityState === 'visible' && eventsStore.mode === 'polling') {
+      void detectFromSessions()
+    }
+  }
+
   function startPollDetection(): void {
     if (pollTimer !== undefined) return
     pollTimer = window.setInterval(() => {
@@ -328,6 +335,8 @@ export const useNotificationsStore = defineStore('notifications', () => {
     unsubscribe = eventsStore.subscribe(handleEvent)
     // 3. 连接模式：polling → 启动 15s 增量检测 + 上报；sse → 停止
     stopModeWatch = watch(() => eventsStore.mode, applyMode, { immediate: true })
+    // 页面恢复可见时立即补一次轮询检测
+    document.addEventListener('visibilitychange', handleVisibilityChange)
     // 4-6. 设置 → 会话 → 权限 FSM
     void bootstrap()
   }
@@ -348,6 +357,8 @@ export const useNotificationsStore = defineStore('notifications', () => {
       stopModeWatch()
       stopModeWatch = null
     }
+    // 移除 visibilitychange 监听
+    document.removeEventListener('visibilitychange', handleVisibilityChange)
     // reset 状态到默认（不触碰 Notification.permission）
     enabled.value = true
     dndSessionIds.value = new Set()
