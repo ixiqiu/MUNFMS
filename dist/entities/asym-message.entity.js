@@ -9,57 +9,45 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.FileEntity = exports.SpaceType = void 0;
+exports.AsymMessage = void 0;
 const typeorm_1 = require("typeorm");
-var SpaceType;
-(function (SpaceType) {
-    SpaceType["CABINET"] = "CABINET";
-    SpaceType["PUBLIC"] = "PUBLIC";
-    SpaceType["CONFERENCE"] = "CONFERENCE";
-    SpaceType["CONSULT"] = "CONSULT";
-    SpaceType["TIMELINE"] = "TIMELINE";
-    SpaceType["DIRECTIVE"] = "DIRECTIVE";
-    SpaceType["ASYMMETRIC"] = "ASYMMETRIC";
-})(SpaceType || (exports.SpaceType = SpaceType = {}));
-let FileEntity = class FileEntity {
+const message_entity_1 = require("./message.entity");
+let AsymMessage = class AsymMessage {
 };
-exports.FileEntity = FileEntity;
+exports.AsymMessage = AsymMessage;
 __decorate([
     (0, typeorm_1.PrimaryGeneratedColumn)('uuid'),
     __metadata("design:type", String)
-], FileEntity.prototype, "id", void 0);
+], AsymMessage.prototype, "id", void 0);
 __decorate([
     (0, typeorm_1.Column)(),
     __metadata("design:type", String)
-], FileEntity.prototype, "fileName", void 0);
+], AsymMessage.prototype, "cabinetId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-enum', enum: message_entity_1.MessageSenderType, default: message_entity_1.MessageSenderType.CABINET }),
+    __metadata("design:type", String)
+], AsymMessage.prototype, "senderType", void 0);
 __decorate([
     (0, typeorm_1.Column)(),
     __metadata("design:type", String)
-], FileEntity.prototype, "storagePath", void 0);
+], AsymMessage.prototype, "senderUserId", void 0);
 __decorate([
-    (0, typeorm_1.Column)({
-        type: 'simple-enum',
-        enum: SpaceType,
-    }),
+    (0, typeorm_1.Column)({ type: 'text', nullable: true }),
     __metadata("design:type", String)
-], FileEntity.prototype, "spaceType", void 0);
-__decorate([
-    (0, typeorm_1.Column)(),
-    __metadata("design:type", String)
-], FileEntity.prototype, "uploaderId", void 0);
+], AsymMessage.prototype, "content", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
-], FileEntity.prototype, "targetId", void 0);
+], AsymMessage.prototype, "fileId", void 0);
 __decorate([
     (0, typeorm_1.Column)({ default: false }),
     __metadata("design:type", Boolean)
-], FileEntity.prototype, "isFromConference", void 0);
+], AsymMessage.prototype, "isRead", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)(),
     __metadata("design:type", Date)
-], FileEntity.prototype, "createdAt", void 0);
-exports.FileEntity = FileEntity = __decorate([
-    (0, typeorm_1.Entity)('files')
-], FileEntity);
-//# sourceMappingURL=file.entity.js.map
+], AsymMessage.prototype, "createdAt", void 0);
+exports.AsymMessage = AsymMessage = __decorate([
+    (0, typeorm_1.Entity)('asym_messages')
+], AsymMessage);
+//# sourceMappingURL=asym-message.entity.js.map

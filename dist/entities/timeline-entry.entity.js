@@ -9,57 +9,50 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.FileEntity = exports.SpaceType = void 0;
+exports.TimelineEntry = exports.TimelineEntryType = void 0;
 const typeorm_1 = require("typeorm");
-var SpaceType;
-(function (SpaceType) {
-    SpaceType["CABINET"] = "CABINET";
-    SpaceType["PUBLIC"] = "PUBLIC";
-    SpaceType["CONFERENCE"] = "CONFERENCE";
-    SpaceType["CONSULT"] = "CONSULT";
-    SpaceType["TIMELINE"] = "TIMELINE";
-    SpaceType["DIRECTIVE"] = "DIRECTIVE";
-    SpaceType["ASYMMETRIC"] = "ASYMMETRIC";
-})(SpaceType || (exports.SpaceType = SpaceType = {}));
-let FileEntity = class FileEntity {
+var TimelineEntryType;
+(function (TimelineEntryType) {
+    TimelineEntryType["SITUATION"] = "SITUATION";
+    TimelineEntryType["NEWS"] = "NEWS";
+})(TimelineEntryType || (exports.TimelineEntryType = TimelineEntryType = {}));
+let TimelineEntry = class TimelineEntry {
 };
-exports.FileEntity = FileEntity;
+exports.TimelineEntry = TimelineEntry;
 __decorate([
     (0, typeorm_1.PrimaryGeneratedColumn)('uuid'),
     __metadata("design:type", String)
-], FileEntity.prototype, "id", void 0);
+], TimelineEntry.prototype, "id", void 0);
 __decorate([
     (0, typeorm_1.Column)(),
     __metadata("design:type", String)
-], FileEntity.prototype, "fileName", void 0);
+], TimelineEntry.prototype, "periodId", void 0);
 __decorate([
-    (0, typeorm_1.Column)(),
+    (0, typeorm_1.Column)({ type: 'simple-enum', enum: TimelineEntryType }),
     __metadata("design:type", String)
-], FileEntity.prototype, "storagePath", void 0);
+], TimelineEntry.prototype, "type", void 0);
 __decorate([
-    (0, typeorm_1.Column)({
-        type: 'simple-enum',
-        enum: SpaceType,
-    }),
+    (0, typeorm_1.Column)({ type: 'varchar', nullable: true }),
     __metadata("design:type", String)
-], FileEntity.prototype, "spaceType", void 0);
+], TimelineEntry.prototype, "newsSource", void 0);
 __decorate([
-    (0, typeorm_1.Column)(),
+    (0, typeorm_1.Column)({ type: 'text', nullable: true }),
     __metadata("design:type", String)
-], FileEntity.prototype, "uploaderId", void 0);
+], TimelineEntry.prototype, "content", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
-], FileEntity.prototype, "targetId", void 0);
+], TimelineEntry.prototype, "fileId", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ default: false }),
-    __metadata("design:type", Boolean)
-], FileEntity.prototype, "isFromConference", void 0);
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", Number)
+], TimelineEntry.prototype, "sequence", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)(),
     __metadata("design:type", Date)
-], FileEntity.prototype, "createdAt", void 0);
-exports.FileEntity = FileEntity = __decorate([
-    (0, typeorm_1.Entity)('files')
-], FileEntity);
-//# sourceMappingURL=file.entity.js.map
+], TimelineEntry.prototype, "createdAt", void 0);
+exports.TimelineEntry = TimelineEntry = __decorate([
+    (0, typeorm_1.Entity)('timeline_entries'),
+    (0, typeorm_1.Index)(['periodId', 'type', 'sequence'], { unique: true })
+], TimelineEntry);
+//# sourceMappingURL=timeline-entry.entity.js.map

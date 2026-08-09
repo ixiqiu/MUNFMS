@@ -26,6 +26,16 @@ const session_member_entity_1 = require("./entities/session-member.entity");
 const message_entity_1 = require("./entities/message.entity");
 const notification_setting_entity_1 = require("./entities/notification-setting.entity");
 const user_session_dnd_entity_1 = require("./entities/user-session-dnd.entity");
+const conference_period_entity_1 = require("./entities/conference-period.entity");
+const global_state_entity_1 = require("./entities/global-state.entity");
+const timeline_entry_entity_1 = require("./entities/timeline-entry.entity");
+const directive_type_entity_1 = require("./entities/directive-type.entity");
+const directive_entity_1 = require("./entities/directive.entity");
+const asym_message_entity_1 = require("./entities/asym-message.entity");
+const periods_module_1 = require("./periods/periods.module");
+const timeline_module_1 = require("./timeline/timeline.module");
+const directives_module_1 = require("./directives/directives.module");
+const asymmetric_module_1 = require("./asymmetric/asymmetric.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -49,7 +59,7 @@ exports.AppModule = AppModule = __decorate([
                             username: configService.get('DB_USERNAME', 'root'),
                             password: configService.get('DB_PASSWORD', ''),
                             database: configService.get('DB_DATABASE', 'mun_files'),
-                            entities: [cabinet_entity_1.Cabinet, user_entity_1.User, file_entity_1.FileEntity, session_entity_1.Session, session_member_entity_1.SessionMember, message_entity_1.Message, notification_setting_entity_1.NotificationSetting, user_session_dnd_entity_1.UserSessionDnd],
+                            entities: [cabinet_entity_1.Cabinet, user_entity_1.User, file_entity_1.FileEntity, session_entity_1.Session, session_member_entity_1.SessionMember, message_entity_1.Message, notification_setting_entity_1.NotificationSetting, user_session_dnd_entity_1.UserSessionDnd, conference_period_entity_1.ConferencePeriod, global_state_entity_1.GlobalState, timeline_entry_entity_1.TimelineEntry, directive_type_entity_1.DirectiveType, directive_entity_1.Directive, asym_message_entity_1.AsymMessage],
                             synchronize: true,
                             logging: configService.get('DB_LOGGING', false),
                         };
@@ -58,7 +68,7 @@ exports.AppModule = AppModule = __decorate([
                         return {
                             type: 'sqlite',
                             database: configService.get('SQLITE_DB_PATH', 'dev.db'),
-                            entities: [cabinet_entity_1.Cabinet, user_entity_1.User, file_entity_1.FileEntity, session_entity_1.Session, session_member_entity_1.SessionMember, message_entity_1.Message, notification_setting_entity_1.NotificationSetting, user_session_dnd_entity_1.UserSessionDnd],
+                            entities: [cabinet_entity_1.Cabinet, user_entity_1.User, file_entity_1.FileEntity, session_entity_1.Session, session_member_entity_1.SessionMember, message_entity_1.Message, notification_setting_entity_1.NotificationSetting, user_session_dnd_entity_1.UserSessionDnd, conference_period_entity_1.ConferencePeriod, global_state_entity_1.GlobalState, timeline_entry_entity_1.TimelineEntry, directive_type_entity_1.DirectiveType, directive_entity_1.Directive, asym_message_entity_1.AsymMessage],
                             synchronize: true,
                             logging: configService.get('DB_LOGGING', false),
                         };
@@ -73,6 +83,10 @@ exports.AppModule = AppModule = __decorate([
             license_module_1.LicenseModule,
             events_module_1.EventsModule,
             notifications_module_1.NotificationsModule,
+            periods_module_1.PeriodsModule,
+            timeline_module_1.TimelineModule,
+            directives_module_1.DirectivesModule,
+            asymmetric_module_1.AsymmetricModule,
         ],
     })
 ], AppModule);
