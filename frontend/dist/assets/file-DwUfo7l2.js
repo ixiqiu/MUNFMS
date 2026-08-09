@@ -1,0 +1,1 @@
+var e=[`png`,`jpg`,`jpeg`,`gif`,`webp`,`svg`,`bmp`];function t(t){let n=t.split(`.`).pop()?.toLowerCase()??``;return e.includes(n)}function n(e,t){let n=URL.createObjectURL(e.data),r=document.createElement(`a`);r.href=n,r.download=t,document.body.appendChild(r),r.click(),document.body.removeChild(r),URL.revokeObjectURL(n)}export{t as n,n as t};

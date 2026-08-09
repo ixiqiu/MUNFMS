@@ -1,0 +1,1 @@
+import{t as e}from"./client-B9FPHoAU.js";var t={list(){return e.get(`/periods`).then(e=>e.data)},getCurrent(){return e.get(`/periods/current`).then(e=>e.data)},create(t){return e.post(`/periods`,t).then(e=>e.data)},setCurrent(t){return e.put(`/periods/current`,{periodId:t}).then(e=>e.data)}};export{t};
