@@ -18,7 +18,14 @@
 
 export type UserRole = 'ADMIN' | 'DELEGATE' | 'ACADEMIC'
 export type CabinetType = 'CABINET' | 'BUREAU' | 'CRISIS'
-export type SpaceType = 'CABINET' | 'PUBLIC' | 'CONFERENCE' | 'CONSULT'
+export type SpaceType =
+  | 'CABINET'
+  | 'PUBLIC'
+  | 'CONFERENCE'
+  | 'CONSULT'
+  | 'TIMELINE'
+  | 'DIRECTIVE'
+  | 'ASYMMETRIC'
 
 export interface Cabinet {
   id: string
@@ -85,7 +92,16 @@ export interface Message {
   file?: FileEntity | null
 }
 
-export type SseEventType = 'file.changed' | 'session.changed' | 'message.new' | 'cabinet.deleted'
+export type SseEventType =
+  | 'file.changed'
+  | 'session.changed'
+  | 'message.new'
+  | 'cabinet.deleted'
+  | 'period.changed'
+  | 'timeline.changed'
+  | 'directive.new'
+  | 'directive.changed'
+  | 'asym.message.new'
 
 export interface SseEvent {
   type: SseEventType
@@ -95,6 +111,9 @@ export interface SseEvent {
   actorId?: string
   fileName?: string
   senderCabinetId?: string | null
+  entryType?: 'SITUATION' | 'NEWS'
+  status?: 'ACCEPTED' | 'REJECTED'
+  senderType?: 'CABINET' | 'ACADEMIC'
   ts: number
 }
 
@@ -114,4 +133,69 @@ export interface DelegateNotificationStatus {
   lastPermission: NotificationPermissionState | null
   lastPermissionAt: string | null
   connectionStatus: ConnectionStatus
+}
+
+export interface ConferencePeriod {
+  id: string
+  number: number
+  name: string | null
+  createdAt: string
+}
+
+export type TimelineEntryType = 'SITUATION' | 'NEWS'
+
+export interface TimelineEntry {
+  id: string
+  periodId: string
+  type: TimelineEntryType
+  newsSource: string | null
+  content: string | null
+  fileId: string | null
+  sequence: number
+  createdAt: string
+  period?: { number: number } | null
+  file?: { id: string; fileName: string } | null
+}
+
+export interface DirectiveType {
+  id: string
+  name: string
+  isPreset: boolean
+  sortOrder: number
+  createdAt: string
+}
+
+export type DirectiveStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED'
+
+export interface Directive {
+  id: string
+  periodId: string
+  typeId: string
+  typeName: string
+  cabinetId: string
+  content: string
+  fileId: string | null
+  status: DirectiveStatus
+  reply: string | null
+  replyFileId: string | null
+  sequence: number
+  createdAt: string
+  reviewedAt: string | null
+  file?: { id: string; fileName: string } | null
+  replyFile?: { id: string; fileName: string } | null
+  cabinetName?: string
+}
+
+export interface AsymMessage {
+  id: string
+  cabinetId: string
+  senderType: 'CABINET' | 'ACADEMIC'
+  senderUserId: string
+  content: string | null
+  fileId: string | null
+  isRead: boolean
+  createdAt: string
+  file?: { id: string; fileName: string } | null
+  senderName?: string
+  senderCabinetName?: string
 }
