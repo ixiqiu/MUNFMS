@@ -16,11 +16,20 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-export * from './cabinet.entity';
-export * from './user.entity';
-export * from './file.entity';
-export * from './session.entity';
-export * from './session-member.entity';
-export * from './message.entity';
-export * from './notification-setting.entity';
-export * from './user-session-dnd.entity';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Index } from 'typeorm';
+
+@Entity('user_session_dnd')
+@Index(['userId', 'sessionId'], { unique: true })
+export class UserSessionDnd {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column()
+  userId: string;
+
+  @Column()
+  sessionId: string;
+
+  @CreateDateColumn()
+  createdAt: Date;
+}

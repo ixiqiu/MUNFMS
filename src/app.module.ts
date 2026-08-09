@@ -26,12 +26,15 @@ import { CabinetsModule } from './cabinets/cabinets.module';
 import { AdminModule } from './admin/admin.module';
 import { LicenseModule } from './license/license.module';
 import { EventsModule } from './events/events.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { Cabinet } from './entities/cabinet.entity';
 import { User } from './entities/user.entity';
 import { FileEntity } from './entities/file.entity';
 import { Session } from './entities/session.entity';
 import { SessionMember } from './entities/session-member.entity';
 import { Message } from './entities/message.entity';
+import { NotificationSetting } from './entities/notification-setting.entity';
+import { UserSessionDnd } from './entities/user-session-dnd.entity';
 
 @Module({
   imports: [
@@ -56,7 +59,7 @@ import { Message } from './entities/message.entity';
             username: configService.get<string>('DB_USERNAME', 'root'),
             password: configService.get<string>('DB_PASSWORD', ''),
             database: configService.get<string>('DB_DATABASE', 'mun_files'),
-            entities: [Cabinet, User, FileEntity, Session, SessionMember, Message],
+            entities: [Cabinet, User, FileEntity, Session, SessionMember, Message, NotificationSetting, UserSessionDnd],
             synchronize: true, // 生产环境应设为 false
             logging: configService.get<boolean>('DB_LOGGING', false),
           };
@@ -65,7 +68,7 @@ import { Message } from './entities/message.entity';
           return {
             type: 'sqlite',
             database: configService.get<string>('SQLITE_DB_PATH', 'dev.db'),
-            entities: [Cabinet, User, FileEntity, Session, SessionMember, Message],
+            entities: [Cabinet, User, FileEntity, Session, SessionMember, Message, NotificationSetting, UserSessionDnd],
             synchronize: true,
             logging: configService.get<boolean>('DB_LOGGING', false),
           };
@@ -81,6 +84,7 @@ import { Message } from './entities/message.entity';
     AdminModule,
     LicenseModule,
     EventsModule,
+    NotificationsModule,
   ],
 })
 export class AppModule {}
