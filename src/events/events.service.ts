@@ -33,6 +33,8 @@ export interface SseEvent {
   targetId?: string | null;
   sessionId?: string;
   actorId?: string;
+  fileName?: string;
+  senderCabinetId?: string | null;
   ts: number;
 }
 
@@ -43,7 +45,21 @@ const CLEANUP_INTERVAL_MS = 60_000; // 每 60s 清理过期票据
 export class EventsService implements OnModuleInit, OnModuleDestroy {
   private readonly event$ = new Subject<SseEvent>();
   private readonly tickets = new Map<string, { userId: string; expiresAt: number }>();
+  private readonly activeConnections = new Map<string, number>(); // userId -> 连接数（多标签累加）
   private cleanupTimer: NodeJS.Timeout;
+
+  // —— 活跃连接追踪（供通知总控页查询，多标签引用计数）——
+
+  connectionOpened(userId: string): void {
+    this.activeConnections.set(userId, (this.activeConnections.get(userId) ?? 0) + 1);
+  }
+  connectionClosed(userId: string): void {
+    const n = (this.activeConnections.get(userId) ?? 1) - 1;
+    if (n <= 0) this.activeConnections.delete(userId); else this.activeConnections.set(userId, n);
+  }
+  isConnected(userId: string): boolean {
+    return (this.activeConnections.get(userId) ?? 0) > 0;
+  }
 
   // —— 票据 ——
 
