@@ -127,6 +127,7 @@ export class FilesService {
         spaceType,
         targetId,
         actorId: user.id,
+        fileName: savedFile.fileName,
         ts: Date.now(),
       });
       return savedFile;
@@ -297,6 +298,7 @@ export class FilesService {
         spaceType: SpaceType.PUBLIC,
         targetId: 'PUBLIC',
         actorId: user.id,
+        fileName: savedFile.fileName,
         ts: Date.now(),
       });
       return savedFile;

@@ -23,10 +23,12 @@ import { CopyDocument, Edit, Plus, Upload } from '@element-plus/icons-vue'
 import { cabinetsApi, filesApi, sessionsApi } from '../api'
 import { useAuthStore } from '../stores/auth'
 import { useEventsStore, type SseMode } from '../stores/events'
+import { useNotificationsStore } from '../stores/notifications'
 import type { Cabinet, CabinetType, FileEntity, Message, Session } from '../types'
 
 const auth = useAuthStore()
 const eventsStore = useEventsStore()
+const notificationsStore = useNotificationsStore()
 // 学术组与管理员拥有全部群聊的查看与解散权限
 const isManager = computed(() => auth.user?.role === 'ACADEMIC' || auth.user?.role === 'ADMIN')
 const myCabinetId = computed(() => auth.cabinetId)
@@ -122,6 +124,7 @@ function stopMessageTimer() {
 }
 
 watch(currentSessionId, (id) => {
+  notificationsStore.setViewingSession(id)
   revokeAllImageUrls()
   if (id) {
     messages.value = []
@@ -170,6 +173,7 @@ onUnmounted(() => {
   stopSessionTimer()
   stopMessageTimer()
   revokeAllImageUrls()
+  notificationsStore.setViewingSession(null)
 })
 
 function selectSession(session: Session) {
@@ -613,6 +617,23 @@ function senderLabel(m: Message): string {
               </div>
               <div class="session-subtitle" :title="memberNames(s)">{{ memberNames(s) }}</div>
             </div>
+            <el-tooltip
+              :content="notificationsStore.dndSessionIds.has(s.id) ? '免打扰' : '开启免打扰'"
+              placement="top"
+            >
+              <button
+                type="button"
+                class="dnd-bell"
+                :class="{ muted: notificationsStore.dndSessionIds.has(s.id) }"
+                :aria-label="notificationsStore.dndSessionIds.has(s.id) ? '关闭免打扰' : '开启免打扰'"
+                @click.stop="notificationsStore.toggleDnd(s.id)"
+              >
+                <el-icon>
+                  <BellFilled v-if="notificationsStore.dndSessionIds.has(s.id)" />
+                  <Bell v-else />
+                </el-icon>
+              </button>
+            </el-tooltip>
           </div>
         </div>
         <div v-else class="session-empty">
@@ -1066,6 +1087,35 @@ function senderLabel(m: Message): string {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* 会话列表免打扰铃铛 */
+.dnd-bell {
+  border: none;
+  background: transparent;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 6px;
+  color: #909399;
+  flex-shrink: 0;
+  transition: color 0.15s, background-color 0.15s;
+}
+
+.dnd-bell:hover {
+  background: #ecf5ff;
+  color: #409eff;
+}
+
+.dnd-bell.muted {
+  color: #c0c4cc;
+}
+
+.dnd-bell.muted:hover {
+  background: #fef0f0;
+  color: #f56c6c;
 }
 
 .session-empty {

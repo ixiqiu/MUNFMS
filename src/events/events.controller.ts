@@ -61,6 +61,7 @@ export class EventsController {
       // 此时尚未写入 SSE 响应头，正常返回 JSON 401
       throw new UnauthorizedException('无效或已过期的连接票据');
     }
+    this.eventsService.connectionOpened(userId);
 
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -77,6 +78,7 @@ export class EventsController {
     res.on('close', () => {
       clearInterval(heartbeat);
       sub.unsubscribe();
+      this.eventsService.connectionClosed(userId);
     });
   }
 }

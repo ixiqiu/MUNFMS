@@ -93,5 +93,25 @@ export interface SseEvent {
   targetId?: string | null
   sessionId?: string
   actorId?: string
+  fileName?: string
+  senderCabinetId?: string | null
   ts: number
+}
+
+export type NotificationPermissionState = 'granted' | 'denied' | 'default' | 'unsupported'
+export type ConnectionStatus = 'online' | 'polling' | 'offline'
+
+export interface NotificationSettings {
+  enabled: boolean
+  dndSessionIds: string[]
+}
+
+export interface DelegateNotificationStatus {
+  userId: string
+  name: string
+  cabinetName: string
+  enabled: boolean
+  lastPermission: NotificationPermissionState | null
+  lastPermissionAt: string | null
+  connectionStatus: ConnectionStatus
 }

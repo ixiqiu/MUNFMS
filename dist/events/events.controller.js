@@ -31,6 +31,7 @@ let EventsController = class EventsController {
         if (!userId) {
             throw new common_1.UnauthorizedException('无效或已过期的连接票据');
         }
+        this.eventsService.connectionOpened(userId);
         res.setHeader('Content-Type', 'text/event-stream');
         res.setHeader('Cache-Control', 'no-cache, no-transform');
         res.setHeader('Connection', 'keep-alive');
@@ -44,6 +45,7 @@ let EventsController = class EventsController {
         res.on('close', () => {
             clearInterval(heartbeat);
             sub.unsubscribe();
+            this.eventsService.connectionClosed(userId);
         });
     }
 };
