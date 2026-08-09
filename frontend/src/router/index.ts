@@ -32,6 +32,7 @@ const router = createRouter({
         { path: 'public', name: 'public', component: () => import('../views/PublicSpace.vue') },
         { path: 'conference', name: 'conference', component: () => import('../views/ConferenceSpace.vue') },
         { path: 'consult', name: 'consult', component: () => import('../views/ConsultSpace.vue') },
+        { path: 'academic', name: 'academic', component: () => import('../views/AcademicOverview.vue') },
         { path: 'admin', name: 'admin', component: () => import('../views/AdminView.vue') },
         { path: 'about', name: 'about', component: () => import('../views/AboutView.vue') },
       ],
@@ -56,6 +57,12 @@ router.beforeEach((to) => {
   const user = JSON.parse(localStorage.getItem('mun_user') || 'null')
   if (user?.role === 'ADMIN' && !['admin', 'about', 'consult'].includes(to.name as string)) {
     return { name: 'admin' }
+  }
+  if (to.name === 'academic') {
+    const academicUser = JSON.parse(localStorage.getItem('mun_user') || 'null')
+    if (academicUser?.role !== 'ACADEMIC') {
+      return { name: 'cabinet' }
+    }
   }
 })
 

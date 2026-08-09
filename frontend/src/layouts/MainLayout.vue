@@ -21,11 +21,13 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useEventsStore } from '../stores/events'
+import { useNotificationsStore } from '../stores/notifications'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const eventsStore = useEventsStore()
+const notificationsStore = useNotificationsStore()
 
 const isMobile = ref(false)
 const drawerVisible = ref(false)
@@ -47,6 +49,7 @@ const spaceTitle = computed(() => {
     public: { title: '公共空间', subtitle: '官方发布区，全员可读' },
     conference: { title: '会议空间', subtitle: '大会文件提交与审核' },
     consult: { title: '磋商空间', subtitle: '双边文件磋商（传纸条）' },
+    academic: { title: '通知总控', subtitle: '代表通知状态一览' },
     admin: { title: '系统管理', subtitle: '账户与内阁管理' },
     about: { title: '关于', subtitle: '项目信息与许可证' },
   }
@@ -70,15 +73,28 @@ onMounted(() => {
   updateIsMobile()
   window.addEventListener('resize', updateIsMobile)
   eventsStore.init()
+  notificationsStore.init()
 })
 onUnmounted(() => {
   window.removeEventListener('resize', updateIsMobile)
   eventsStore.destroy()
+  notificationsStore.destroy()
 })
 
 function logout() {
   auth.logout()
   router.push('/login')
+}
+
+const notifDialogVisible = ref(false)
+
+function handleCommand(cmd: string) {
+  if (cmd === 'logout') return logout()
+  if (cmd === 'notif-settings') notifDialogVisible.value = true
+}
+
+function handleToggleEnabled(value: string | number | boolean) {
+  void notificationsStore.toggleEnabled(Boolean(value))
 }
 </script>
 
@@ -117,6 +133,10 @@ function logout() {
             <el-icon><ChatDotRound /></el-icon>
             <span>磋商空间</span>
           </el-menu-item>
+          <el-menu-item v-if="auth.isAcademic" index="academic">
+            <el-icon><Bell /></el-icon>
+            <span>通知总控</span>
+          </el-menu-item>
         </template>
         <el-menu-item index="about">
           <el-icon><InfoFilled /></el-icon>
@@ -140,7 +160,7 @@ function logout() {
           <div class="header-title">{{ spaceTitle.title }}</div>
           <div class="header-subtitle">{{ spaceTitle.subtitle }}</div>
         </div>
-        <el-dropdown @command="(cmd: string) => cmd === 'logout' && logout()">
+        <el-dropdown @command="handleCommand">
           <div class="user-info">
             <el-avatar :size="32" class="avatar">
               {{ auth.user?.name?.charAt(0)?.toUpperCase() }}
@@ -156,6 +176,7 @@ function logout() {
           </div>
           <template #dropdown>
             <el-dropdown-menu>
+              <el-dropdown-item command="notif-settings">通知设置</el-dropdown-item>
               <el-dropdown-item command="logout">退出登录</el-dropdown-item>
             </el-dropdown-menu>
           </template>
@@ -217,6 +238,10 @@ function logout() {
             <el-icon><ChatDotRound /></el-icon>
             <span>磋商空间</span>
           </el-menu-item>
+          <el-menu-item v-if="auth.isAcademic" index="academic">
+            <el-icon><Bell /></el-icon>
+            <span>通知总控</span>
+          </el-menu-item>
         </template>
         <el-menu-item index="about">
           <el-icon><InfoFilled /></el-icon>
@@ -225,6 +250,41 @@ function logout() {
       </el-menu>
     </div>
   </el-drawer>
+
+  <!-- 通知设置弹窗 -->
+  <el-dialog v-model="notifDialogVisible" title="通知设置" width="420px">
+    <div class="notif-settings">
+      <div class="notif-row">
+        <span class="notif-label">接收浏览器通知</span>
+        <el-switch
+          v-model="notificationsStore.enabled"
+          @change="handleToggleEnabled"
+        />
+      </div>
+      <div class="notif-status">
+        <template v-if="notificationsStore.permission === 'granted'">
+          <span class="notif-status-text">通知权限已授权</span>
+        </template>
+        <template v-else-if="notificationsStore.permission === 'denied'">
+          <span class="notif-status-text notif-status-warn">
+            浏览器已阻止通知权限，请在地址栏左侧图标 → 网站设置 → 通知中允许本站
+          </span>
+        </template>
+        <template v-else-if="notificationsStore.permission === 'default'">
+          <span class="notif-status-text">尚未授权</span>
+          <el-button size="small" type="primary" @click="notificationsStore.requestPermission()">
+            重新请求权限
+          </el-button>
+        </template>
+        <template v-else>
+          <span class="notif-status-text">当前浏览器不支持通知</span>
+        </template>
+      </div>
+    </div>
+    <template #footer>
+      <el-button type="primary" @click="notifDialogVisible = false">关闭</el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <style scoped>
@@ -332,6 +392,40 @@ function logout() {
 
 .mobile-drawer :deep(.el-drawer__body) {
   padding: 0;
+}
+
+.notif-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.notif-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.notif-label {
+  font-size: 14px;
+  color: #303133;
+}
+
+.notif-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.notif-status-text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #909399;
+}
+
+.notif-status-warn {
+  color: #e6a23c;
 }
 
 @media (max-width: 768px) {
