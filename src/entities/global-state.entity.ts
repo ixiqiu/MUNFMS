@@ -26,6 +26,18 @@ export class GlobalState {
   @Column({ nullable: true })
   currentPeriodId: string | null; // 手动 FK，不建关系
 
+  @Column({ nullable: true })
+  simTimeBase: Date | null; // 会期基准时间，null=未设置
+
+  @Column({ nullable: true })
+  baseRealTime: Date | null; // 现实锚定时刻（保存/恢复时的服务器时间）
+
+  @Column({ default: 1 })
+  flowRatio: number; // 时间流动比 N（1 现实分钟 = N 会期分钟）
+
+  @Column({ default: false })
+  isRunning: boolean; // 是否流动中
+
   @UpdateDateColumn()
   updatedAt: Date;
 }

@@ -23,7 +23,7 @@ import { useAuthStore } from '../stores/auth'
 import { useEventsStore } from '../stores/events'
 import { useNotificationsStore } from '../stores/notifications'
 import { periodsApi } from '../api/periods'
-import type { ConferencePeriod } from '../types'
+import type { ConferencePeriod, PeriodClock } from '../types'
 
 const route = useRoute()
 const router = useRouter()
@@ -85,16 +85,54 @@ const currentPeriodLabel = computed(() => {
   return `当前会期：第${p.number}会期${p.name ?? ''}`
 })
 
+// 会期时间流动展示（所有角色可见）
+const clock = ref<PeriodClock | null>(null)
+const clockDisplay = ref('')
+
+/** 按流动规则推算当前会期时间：流动中按 base 推算，暂停时直接用 simTimeBase */
+function computeSimTime(c: PeriodClock): Date {
+  if (!c.isRunning || !c.baseRealTime) {
+    return c.simTimeBase ? new Date(c.simTimeBase) : new Date(0)
+  }
+  const base = c.simTimeBase ? new Date(c.simTimeBase).getTime() : 0
+  const realBase = new Date(c.baseRealTime).getTime()
+  return new Date(base + (Date.now() - realBase) * c.flowRatio)
+}
+
+/** 格式化会期时间：YYYY-MM-DD HH:mm（本地时区） */
+function formatClock(c: PeriodClock): string {
+  const date = computeSimTime(c)
+  if (Number.isNaN(date.getTime())) return ''
+  const pad = (n: number): string => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+/** 流动比后缀：flowRatio > 1 时显示（移动端隐藏） */
+const flowSuffix = computed(() => {
+  const c = clock.value
+  return c && c.flowRatio > 1 ? ` · 1:${c.flowRatio}` : ''
+})
+
+/** 暂停后缀 */
+const pauseSuffix = computed(() => {
+  const c = clock.value
+  return c && !c.isRunning ? ' ⏸ 已暂停' : ''
+})
+
 async function refreshCurrentPeriod() {
   try {
     const res = await periodsApi.getCurrent()
     currentPeriod.value = res.period
+    clock.value = res.clock
+    if (res.clock) clockDisplay.value = formatClock(res.clock)
   } catch {
     // 错误已由 axios 拦截器统一提示
   }
 }
 
 let unsubscribePeriod: (() => void) | undefined
+let clockTimer: number | undefined
+let calibrateTimer: number | undefined
 
 onMounted(() => {
   updateIsMobile()
@@ -102,12 +140,24 @@ onMounted(() => {
   eventsStore.init()
   notificationsStore.init()
   void refreshCurrentPeriod()
+  // 每 2 秒本地推算刷新显示（无网络请求；基准值未变时推算即精确）
+  clockTimer = window.setInterval(() => {
+    if (clock.value) {
+      clockDisplay.value = formatClock(clock.value)
+    }
+  }, 2_000)
+  // 每 60 秒静默校准一次（SSE 降级为轮询时的兜底同步）
+  calibrateTimer = window.setInterval(() => {
+    void refreshCurrentPeriod()
+  }, 60_000)
   unsubscribePeriod = eventsStore.subscribe((e) => {
     if (e.type === 'period.changed') void refreshCurrentPeriod()
   })
 })
 onUnmounted(() => {
   window.removeEventListener('resize', updateIsMobile)
+  if (clockTimer !== undefined) window.clearInterval(clockTimer)
+  if (calibrateTimer !== undefined) window.clearInterval(calibrateTimer)
   eventsStore.destroy()
   notificationsStore.destroy()
   unsubscribePeriod?.()
@@ -215,6 +265,14 @@ function handleToggleEnabled(value: string | number | boolean) {
         <div class="header-right">
           <el-tag v-if="currentPeriodLabel" type="info" effect="plain" class="period-tag">
             {{ currentPeriodLabel }}
+          </el-tag>
+          <el-tag
+            v-if="clock && clock.simTimeBase"
+            :type="clock.isRunning ? 'info' : 'warning'"
+            effect="plain"
+            class="clock-tag"
+          >
+            {{ clockDisplay }}<span class="flow-suffix">{{ flowSuffix }}</span>{{ pauseSuffix }}
           </el-tag>
           <el-dropdown @command="handleCommand">
             <div class="user-info">
@@ -437,6 +495,11 @@ function handleToggleEnabled(value: string | number | boolean) {
   font-size: 12px;
 }
 
+.clock-tag {
+  flex-shrink: 0;
+  font-size: 12px;
+}
+
 .avatar {
   background: #409eff;
   color: #fff;
@@ -537,6 +600,10 @@ function handleToggleEnabled(value: string | number | boolean) {
 
   .header :deep(.el-dropdown) {
     margin-left: auto;
+  }
+
+  .flow-suffix {
+    display: none;
   }
 }
 </style>
