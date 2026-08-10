@@ -41,11 +41,20 @@ let PeriodsService = class PeriodsService {
     async getCurrent() {
         await this.ensureStateRow();
         const state = await this.stateRepo.findOneByOrFail({ id: '1' });
+        const clock = this.getClock(state);
         if (!state.currentPeriodId) {
-            return { period: null };
+            return { period: null, clock };
         }
         const period = await this.periodRepo.findOneBy({ id: state.currentPeriodId });
-        return { period: period ?? null };
+        return { period: period ?? null, clock };
+    }
+    getClock(state) {
+        return {
+            simTimeBase: state.simTimeBase ?? null,
+            baseRealTime: state.baseRealTime ?? null,
+            flowRatio: state.flowRatio,
+            isRunning: state.isRunning,
+        };
     }
     async create(body) {
         if (!Number.isInteger(body.number) || body.number <= 0) {
@@ -75,6 +84,60 @@ let PeriodsService = class PeriodsService {
             ts: Date.now(),
         });
         return { period };
+    }
+    async setTime(body, actorId) {
+        if (!Number.isFinite(body.flowRatio) || body.flowRatio <= 0 || body.flowRatio > 100000) {
+            throw new common_1.BadRequestException('时间流动比必须为正数且不超过 100000');
+        }
+        const parsed = new Date(body.simTime);
+        if (Number.isNaN(parsed.getTime())) {
+            throw new common_1.BadRequestException('会期时间格式无效');
+        }
+        await this.ensureStateRow();
+        await this.stateRepo.update({ id: '1' }, { simTimeBase: parsed, baseRealTime: new Date(), flowRatio: body.flowRatio, isRunning: true });
+        const state = await this.stateRepo.findOneByOrFail({ id: '1' });
+        this.eventsService.emit({
+            type: 'period.changed',
+            targetId: state.currentPeriodId ?? undefined,
+            actorId,
+            ts: Date.now(),
+        });
+        return { clock: this.getClock(state) };
+    }
+    async pauseTime(actorId) {
+        await this.ensureStateRow();
+        const state = await this.stateRepo.findOneByOrFail({ id: '1' });
+        if (state.isRunning && state.simTimeBase && state.baseRealTime) {
+            const currentSim = state.simTimeBase.getTime() + (Date.now() - state.baseRealTime.getTime()) * state.flowRatio;
+            await this.stateRepo.update({ id: '1' }, { simTimeBase: new Date(currentSim), isRunning: false });
+        }
+        else {
+            await this.stateRepo.update({ id: '1' }, { isRunning: false });
+        }
+        const updated = await this.stateRepo.findOneByOrFail({ id: '1' });
+        this.eventsService.emit({
+            type: 'period.changed',
+            targetId: updated.currentPeriodId ?? undefined,
+            actorId,
+            ts: Date.now(),
+        });
+        return { clock: this.getClock(updated) };
+    }
+    async resumeTime(actorId) {
+        await this.ensureStateRow();
+        const state = await this.stateRepo.findOneByOrFail({ id: '1' });
+        if (!state.simTimeBase) {
+            throw new common_1.BadRequestException('请先设置会期时间');
+        }
+        await this.stateRepo.update({ id: '1' }, { baseRealTime: new Date(), isRunning: true });
+        const updated = await this.stateRepo.findOneByOrFail({ id: '1' });
+        this.eventsService.emit({
+            type: 'period.changed',
+            targetId: updated.currentPeriodId ?? undefined,
+            actorId,
+            ts: Date.now(),
+        });
+        return { clock: this.getClock(updated) };
     }
 };
 exports.PeriodsService = PeriodsService;

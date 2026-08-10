@@ -23,6 +23,22 @@ __decorate([
     __metadata("design:type", String)
 ], GlobalState.prototype, "currentPeriodId", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", Date)
+], GlobalState.prototype, "simTimeBase", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", Date)
+], GlobalState.prototype, "baseRealTime", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: 1 }),
+    __metadata("design:type", Number)
+], GlobalState.prototype, "flowRatio", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: false }),
+    __metadata("design:type", Boolean)
+], GlobalState.prototype, "isRunning", void 0);
+__decorate([
     (0, typeorm_1.UpdateDateColumn)(),
     __metadata("design:type", Date)
 ], GlobalState.prototype, "updatedAt", void 0);

@@ -10,6 +10,12 @@ export declare class PeriodsController {
     }>;
     getCurrent(): Promise<{
         period: import("../entities").ConferencePeriod | null;
+        clock: {
+            simTimeBase: Date | null;
+            baseRealTime: Date | null;
+            flowRatio: number;
+            isRunning: boolean;
+        };
     }>;
     create(body: {
         number: number;
@@ -29,5 +35,29 @@ export declare class PeriodsController {
         cabinetId: string | null;
     }): Promise<{
         period: import("../entities").ConferencePeriod;
+    }>;
+    setTime(body: {
+        simTime: string;
+        flowRatio: number;
+    }, user: {
+        id: string;
+        role: UserRole;
+        cabinetId: string | null;
+    }): Promise<{
+        clock: ReturnType<PeriodsService["getClock"]>;
+    }>;
+    pauseTime(user: {
+        id: string;
+        role: UserRole;
+        cabinetId: string | null;
+    }): Promise<{
+        clock: ReturnType<PeriodsService["getClock"]>;
+    }>;
+    resumeTime(user: {
+        id: string;
+        role: UserRole;
+        cabinetId: string | null;
+    }): Promise<{
+        clock: ReturnType<PeriodsService["getClock"]>;
     }>;
 }
