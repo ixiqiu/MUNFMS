@@ -42,6 +42,24 @@ let PeriodsController = class PeriodsController {
         }
         return this.periodsService.setCurrent(body.periodId, user.id);
     }
+    async setTime(body, user) {
+        if (user.role !== user_entity_1.UserRole.ACADEMIC) {
+            throw new common_1.ForbiddenException('仅学术组可管理会期');
+        }
+        return this.periodsService.setTime(body, user.id);
+    }
+    async pauseTime(user) {
+        if (user.role !== user_entity_1.UserRole.ACADEMIC) {
+            throw new common_1.ForbiddenException('仅学术组可管理会期');
+        }
+        return this.periodsService.pauseTime(user.id);
+    }
+    async resumeTime(user) {
+        if (user.role !== user_entity_1.UserRole.ACADEMIC) {
+            throw new common_1.ForbiddenException('仅学术组可管理会期');
+        }
+        return this.periodsService.resumeTime(user.id);
+    }
 };
 exports.PeriodsController = PeriodsController;
 __decorate([
@@ -72,6 +90,28 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], PeriodsController.prototype, "setCurrent", null);
+__decorate([
+    (0, common_1.Put)('time'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], PeriodsController.prototype, "setTime", null);
+__decorate([
+    (0, common_1.Put)('time/pause'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], PeriodsController.prototype, "pauseTime", null);
+__decorate([
+    (0, common_1.Put)('time/resume'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], PeriodsController.prototype, "resumeTime", null);
 exports.PeriodsController = PeriodsController = __decorate([
     (0, common_1.Controller)('periods'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),

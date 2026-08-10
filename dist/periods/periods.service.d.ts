@@ -13,7 +13,14 @@ export declare class PeriodsService {
     }>;
     getCurrent(): Promise<{
         period: ConferencePeriod | null;
+        clock: {
+            simTimeBase: Date | null;
+            baseRealTime: Date | null;
+            flowRatio: number;
+            isRunning: boolean;
+        };
     }>;
+    private getClock;
     create(body: {
         number: number;
         name?: string;
@@ -22,5 +29,17 @@ export declare class PeriodsService {
     }>;
     setCurrent(periodId: string, actorId: string): Promise<{
         period: ConferencePeriod;
+    }>;
+    setTime(body: {
+        simTime: string;
+        flowRatio: number;
+    }, actorId: string): Promise<{
+        clock: ReturnType<PeriodsService['getClock']>;
+    }>;
+    pauseTime(actorId: string): Promise<{
+        clock: ReturnType<PeriodsService['getClock']>;
+    }>;
+    resumeTime(actorId: string): Promise<{
+        clock: ReturnType<PeriodsService['getClock']>;
     }>;
 }

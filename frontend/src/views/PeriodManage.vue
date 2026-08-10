@@ -22,7 +22,7 @@ import { ElMessage } from 'element-plus'
 import { periodsApi } from '../api/periods'
 import { useAuthStore } from '../stores/auth'
 import { useEventsStore } from '../stores/events'
-import type { ConferencePeriod } from '../types'
+import type { ConferencePeriod, PeriodClock } from '../types'
 
 const auth = useAuthStore()
 const eventsStore = useEventsStore()
@@ -35,6 +35,12 @@ const creating = ref(false)
 
 const manualNumber = ref<number | null>(null)
 const manualName = ref('')
+
+// 会期时间流动设置
+const clock = ref<PeriodClock | null>(null)
+const simTimeInput = ref<string | null>(null)
+const flowRatioInput = ref<number | null>(1)
+const timeSaving = ref(false)
 
 /** 下拉选项文案：第{number}会期{name} */
 function periodLabel(p: ConferencePeriod): string {
@@ -53,10 +59,33 @@ async function loadPeriods(): Promise<void> {
   }
 }
 
+/** 按流动规则推算当前会期时间：流动中按 base 推算，暂停时直接用 simTimeBase */
+function computeSimTime(c: PeriodClock): Date {
+  if (!c.isRunning || !c.baseRealTime) {
+    return c.simTimeBase ? new Date(c.simTimeBase) : new Date(0)
+  }
+  const base = c.simTimeBase ? new Date(c.simTimeBase).getTime() : 0
+  const realBase = new Date(c.baseRealTime).getTime()
+  return new Date(base + (Date.now() - realBase) * c.flowRatio)
+}
+
+/** 格式化会期时间：YYYY-MM-DD HH:mm（本地时区） */
+function formatSimTime(c: PeriodClock): string {
+  const date = computeSimTime(c)
+  if (Number.isNaN(date.getTime())) return ''
+  const pad = (n: number): string => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
 async function loadCurrent(): Promise<void> {
   try {
     const res = await periodsApi.getCurrent()
     currentPeriodId.value = res.period?.id ?? ''
+    clock.value = res.clock
+    if (res.clock?.simTimeBase) {
+      simTimeInput.value = formatSimTime(res.clock)
+      flowRatioInput.value = res.clock.flowRatio
+    }
   } catch {
     // 错误提示由 axios 拦截器统一处理
   }
@@ -121,6 +150,46 @@ async function onManualCreate(): Promise<void> {
     // 错误提示由 axios 拦截器统一处理
   } finally {
     creating.value = false
+  }
+}
+
+/** 应用会期时间并开始流动 */
+async function onApplyTime(): Promise<void> {
+  if (timeSaving.value) return
+  const sim = simTimeInput.value
+  const ratio = flowRatioInput.value
+  if (!sim || !ratio || ratio <= 0 || ratio > 100000) {
+    ElMessage.warning('请选择会期时间，且流动比需大于 0 且不超过 100000')
+    return
+  }
+  timeSaving.value = true
+  try {
+    const res = await periodsApi.setTime({
+      simTime: new Date(sim).toISOString(),
+      flowRatio: ratio,
+    })
+    clock.value = res.clock
+    ElMessage.success('会期时间已应用')
+    await refreshAll()
+  } catch {
+    // 错误提示由 axios 拦截器统一处理
+  } finally {
+    timeSaving.value = false
+  }
+}
+
+/** 暂停 / 继续会期时间流动 */
+async function onTogglePause(): Promise<void> {
+  if (!clock.value) return
+  try {
+    const res = clock.value.isRunning
+      ? await periodsApi.pauseTime()
+      : await periodsApi.resumeTime()
+    clock.value = res.clock
+    ElMessage.success(res.clock.isRunning ? '会期时间已恢复流动' : '会期时间已暂停')
+    await refreshAll()
+  } catch {
+    // 错误提示由 axios 拦截器统一处理
   }
 }
 
@@ -214,6 +283,42 @@ onUnmounted(() => {
           创建并切换
         </el-button>
       </div>
+
+      <div class="control-group clock-group">
+        <span class="control-label">会期时空</span>
+        <el-date-picker
+          v-model="simTimeInput"
+          type="datetime"
+          format="YYYY-MM-DD HH:mm"
+          value-format="YYYY-MM-DD HH:mm"
+          placeholder="选择会期时间"
+          class="clock-picker"
+          :disabled="timeSaving"
+        />
+        <el-input-number
+          v-model="flowRatioInput"
+          :min="1"
+          :max="100000"
+          class="clock-ratio"
+          :disabled="timeSaving"
+        />
+        <span class="ratio-hint">1 现实分钟 = {{ flowRatioInput }} 会期分钟</span>
+        <el-button
+          type="primary"
+          :loading="timeSaving"
+          :disabled="!simTimeInput"
+          @click="onApplyTime"
+        >
+          应用并开始
+        </el-button>
+        <el-button
+          :type="clock?.isRunning ? 'warning' : 'success'"
+          :disabled="!clock?.simTimeBase"
+          @click="onTogglePause"
+        >
+          {{ clock?.isRunning ? '暂停' : '继续' }}
+        </el-button>
+      </div>
     </div>
 
     <el-table
@@ -297,6 +402,20 @@ onUnmounted(() => {
   width: 180px;
 }
 
+.clock-picker {
+  width: 200px;
+}
+
+.clock-ratio {
+  width: 120px;
+}
+
+.ratio-hint {
+  font-size: 12px;
+  color: #909399;
+  white-space: nowrap;
+}
+
 .period-table :deep(tr.current-row > td.el-table__cell) {
   background-color: var(--el-color-success-light-9, #f0f9eb);
 }
@@ -318,6 +437,16 @@ onUnmounted(() => {
   }
 
   .manual-group {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .clock-picker,
+  .clock-ratio {
+    width: 100%;
+  }
+
+  .clock-group {
     flex-direction: column;
     align-items: stretch;
   }

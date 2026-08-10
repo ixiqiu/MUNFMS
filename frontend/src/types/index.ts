@@ -142,6 +142,13 @@ export interface ConferencePeriod {
   createdAt: string
 }
 
+export interface PeriodClock {
+  simTimeBase: string | null
+  baseRealTime: string | null
+  flowRatio: number
+  isRunning: boolean
+}
+
 export type TimelineEntryType = 'SITUATION' | 'NEWS'
 
 export interface TimelineEntry {

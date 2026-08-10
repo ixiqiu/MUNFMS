@@ -17,7 +17,7 @@
  */
 
 import client from './client'
-import type { ConferencePeriod } from '../types'
+import type { ConferencePeriod, PeriodClock } from '../types'
 
 export const periodsApi = {
   list() {
@@ -25,7 +25,7 @@ export const periodsApi = {
   },
   getCurrent() {
     return client
-      .get<{ period: ConferencePeriod | null }>('/periods/current')
+      .get<{ period: ConferencePeriod | null; clock: PeriodClock | null }>('/periods/current')
       .then((r) => r.data)
   },
   create(body: { number: number; name?: string }) {
@@ -35,5 +35,14 @@ export const periodsApi = {
     return client
       .put<{ period: ConferencePeriod }>('/periods/current', { periodId })
       .then((r) => r.data)
+  },
+  setTime(body: { simTime: string; flowRatio: number }) {
+    return client.put<{ clock: PeriodClock }>('/periods/time', body).then((r) => r.data)
+  },
+  pauseTime() {
+    return client.put<{ clock: PeriodClock }>('/periods/time/pause').then((r) => r.data)
+  },
+  resumeTime() {
+    return client.put<{ clock: PeriodClock }>('/periods/time/resume').then((r) => r.data)
   },
 }

@@ -74,4 +74,44 @@ export class PeriodsController {
     }
     return this.periodsService.setCurrent(body.periodId, user.id);
   }
+
+  /**
+   * 设置会期基准时间与流动比（仅学术组）：锚定当前现实时刻并立即开始流动
+   */
+  @Put('time')
+  async setTime(
+    @Body() body: { simTime: string; flowRatio: number },
+    @CurrentUser() user: { id: string; role: UserRole; cabinetId: string | null },
+  ) {
+    if (user.role !== UserRole.ACADEMIC) {
+      throw new ForbiddenException('仅学术组可管理会期');
+    }
+    return this.periodsService.setTime(body, user.id);
+  }
+
+  /**
+   * 暂停会期时间流动（仅学术组）
+   */
+  @Put('time/pause')
+  async pauseTime(
+    @CurrentUser() user: { id: string; role: UserRole; cabinetId: string | null },
+  ) {
+    if (user.role !== UserRole.ACADEMIC) {
+      throw new ForbiddenException('仅学术组可管理会期');
+    }
+    return this.periodsService.pauseTime(user.id);
+  }
+
+  /**
+   * 恢复会期时间流动（仅学术组）
+   */
+  @Put('time/resume')
+  async resumeTime(
+    @CurrentUser() user: { id: string; role: UserRole; cabinetId: string | null },
+  ) {
+    if (user.role !== UserRole.ACADEMIC) {
+      throw new ForbiddenException('仅学术组可管理会期');
+    }
+    return this.periodsService.resumeTime(user.id);
+  }
 }
